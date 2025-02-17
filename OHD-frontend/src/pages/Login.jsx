@@ -1,95 +1,132 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-    const [userType, setUserType] = useState(null);
-    const [formData, setFormData] = useState({ email: "", password: "" });
-    const [hovered, setHovered] = useState(null);
+    const [view, setView] = useState(null); // "user" = user login, "admin" = admin login, "register" = create account
+    const [formData, setFormData] = useState({ email: "", password: "", name: "" });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log(`${userType} logging in with`, formData);
-        // Implement authentication logic
+        setLoading(true);
+        setError(null);
+
+        try {
+            let response;
+            if (view === "register") {
+                // Handle New Account Creation
+                response = await fetch("http://localhost:5000/api/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(formData),
+                });
+            } else {
+                // Handle Login
+                response = await fetch("http://localhost:5000/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: formData.email, password: formData.password }),
+                });
+            }
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Something went wrong");
+            }
+
+            // Store authentication token (if applicable)
+            localStorage.setItem("authToken", result.token);
+
+            // Redirect user
+            if (view === "register" || view === "user") {
+                navigate("/dashboard"); // Redirect to User Dashboard
+            } else if (view === "admin") {
+                navigate("/admin-dashboard"); // Redirect to Admin Dashboard
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <div className="custom-container">
-            <div className="flex min-h-screen p-4">
-                {/* Left Side - Login Selection */}
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
+            {/* Selection Screen */}
+            {!view ? (
                 <div className="flex flex-col gap-4">
-                    <Card
-                        onMouseEnter={() => setHovered("user")}
-                        onMouseLeave={() => setHovered(null)}
-                        onClick={() => setUserType("user")}
-                        className={`cursor-pointer p-6 text-center transition hover:shadow-lg ${
-                            hovered === "user" ? "bg-blue-100" : "bg-white"
-                        }`}
-                    >
-                        <CardContent>User Login</CardContent>
-                    </Card>
-                    <Card
-                        onMouseEnter={() => setHovered("admin")}
-                        onMouseLeave={() => setHovered(null)}
-                        onClick={() => setUserType("admin")}
-                        className={`cursor-pointer p-6 text-center transition hover:shadow-lg ${
-                            hovered === "admin" ? "bg-blue-100" : "bg-white"
-                        }`}
-                    >
-                        <CardContent>Admin Login</CardContent>
-                    </Card>
+                    <Button onClick={() => setView("user")} className="w-64 p-4 text-lg bg-blue-500 text-white hover:opacity-75">
+                        Continue as User
+                    </Button>
+                    <Button onClick={() => setView("admin")} className="w-64 p-4 text-lg bg-black text-white hover:opacity-75">
+                        Continue as Admin
+                    </Button>
                 </div>
-
-                {/* Right Side - Image or Form */}
-                <div className="ml-8 w-[400px] h-[250px] flex items-center justify-center bg-white shadow-md rounded-lg">
-                    {userType ? (
-                        <Card className="p-6 w-full">
-                            <CardContent>
-                                <h2 className="text-xl font-semibold mb-4">
-                                    {userType === "user" ? "User Login" : "Admin Login"}
-                                </h2>
-                                <form onSubmit={handleSubmit}>
-                                    <Input
-                                        type="email"
-                                        name="email"
-                                        placeholder="Email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        className="mb-4"
-                                        required
-                                    />
-                                    <Input
-                                        type="password"
-                                        name="password"
-                                        placeholder="Password"
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        className="mb-4"
-                                        required
-                                    />
-                                    <Button type="submit" className="w-full">
-                                        Login
-                                    </Button>
-                                </form>
-                                <Button variant="ghost" onClick={() => setUserType(null)} className="mt-4 w-full">
-                                    Back
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <img
-                            src={hovered === "user" ? "/images/user-image.jpg" : hovered === "admin" ? "/images/admin-image.jpg" : "/images/default-image.jpg"}
-                            alt="Login Illustration"
-                            className="w-full h-full object-cover rounded-lg"
+            ) : (
+                <div className="bg-white p-6 shadow-md rounded-lg w-80">
+                    <h2 className="text-2xl font-semibold text-center mb-6">
+                        {view === "register" ? "Create New Account" : view === "user" ? "User Login" : "Admin Login"}
+                    </h2>
+                    {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+                    <form onSubmit={handleSubmit}>
+                        {view === "register" && (
+                            <Input
+                                type="text"
+                                name="name"
+                                placeholder="Full Name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                className="mb-4"
+                                required
+                            />
+                        )}
+                        <Input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            className="mb-4"
+                            required
                         />
+                        <Input
+                            type="password"
+                            name="password"
+                            placeholder="Password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            className="mb-4"
+                            required
+                        />
+                        <Button type="submit" className="w-full" disabled={loading}>
+                            {loading ? "Processing..." : view === "register" ? "Create Account" : "Login"}
+                        </Button>
+                    </form>
+
+                    {/* "Create New Account" Text Link (Only in User Login) */}
+                    {view === "user" && (
+                        <p
+                            className="text-blue-600 text-center mt-4 cursor-pointer hover:underline"
+                            onClick={() => setView("register")}
+                        >
+                            Create New Account
+                        </p>
                     )}
+
+                    <Button onClick={() => setView(null)} className="mt-4 w-full">
+                        Back
+                    </Button>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
