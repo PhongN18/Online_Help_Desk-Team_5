@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
     message_id: { type: String, unique: true, required: true },
-    message_type: { type: String, enum: ['created', 'status-change'], required: true },
+    message_type: { type: String, enum: ['Created', 'Status-Change', 'Assigned-Request'], required: true },
     sender_id: { type: String, required: true },
     recipient_ids: [{ type: String, required: true }],
     message: { type: String, required: true },

@@ -2,6 +2,7 @@
 const express = require('express');
 const connectDB = require('./config/db'); // File config/db.js để kết nối MongoDB
 const cors = require('cors'); // Import cors
+const { initializeMaxIds } = require('./utils/initMaxIds')
 
 // Import các route
 const userRoutes = require('./routes/userRoutes');
@@ -34,5 +35,6 @@ app.use('/messages', messageRoutes);
 
 // Lắng nghe trên cổng PORT
 app.listen(PORT, () => {
+  initializeMaxIds(); // Initialize max IDs when the server starts
   console.log(`Server is running at http://localhost:${PORT}`);
 });

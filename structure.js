@@ -5,9 +5,6 @@
     roles: ["requester", "manager", "technician"], // Array to allow multiple roles
     email: "user@example.com",
     password: "hashed_password",
-    facilities_responsible_for: ["facility_id1", "facility_id2"], // Only for users with roles assignee or facility-head
-    assigned_requests: ["request_id1", "request_id2"], // Array for assignees
-    created_requests: ["request_id3", "request_id4"], // Array for end-users
     status: "active" // User status (active, inactive, etc.)
 }]
 
@@ -30,7 +27,7 @@
 [{
     facility_id: "unique_facility_id",
     name: "Facility Name (e.g., Lab A, Library)",
-    responsible: "user_id", // User ID of the person responsible (lab-assistant or facility-head)
+    head_manager: "user_id", // User ID of the person responsible (lab-assistant or facility-head)
     status: ["operational", "under maintenance"], // Facility status
     location: "Location details (optional)"
 }]

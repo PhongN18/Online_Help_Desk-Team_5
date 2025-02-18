@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const FacilitySchema = new mongoose.Schema({
     facility_id: { type: String, unique: true, required: true },
     name: { type: String, required: true },
-    responsible: { type: String, required: true },
+    head_manager: { type: String, required: true },
+    employees: [{ type: String }],
     status: {
         type: String,
         enum: ['Operating', 'Under Maintenance', 'Temporarily Closed', 'Pending', 'Closed', 'In Use'], // Explicit list of options

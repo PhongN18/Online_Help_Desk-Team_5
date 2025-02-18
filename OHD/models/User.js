@@ -10,9 +10,6 @@ const UserSchema = new mongoose.Schema({
     }],
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    facilities_responsible_for: [{ type: String }],
-    assigned_requests: [{ type: String }],
-    created_requests: [{ type: String }],
     status: { type: String, enum: ['active', 'inactive'], default: 'active' }
 });
 
