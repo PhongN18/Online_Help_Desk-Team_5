@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Facility = require('../models/Facility');
+const Request = require('../models/Request');
+const { initializeMaxIds } = require('./initMaxIds')
 
 // Helper function to generate random names
 function generateName() {
@@ -138,6 +140,7 @@ const requestTitles = [
 ];
 
 const requestStartTime = new Date('2025-01-01T00:00:00Z'); // 1st January 2025
+const createEndTime = new Date('2025-02-01T00:00:00Z'); // 1st February 2025
 const requestEndTime = new Date('2025-02-20T23:59:59Z'); // 20th February 2025
 function getRandomTimestamp(start, end) {
 
@@ -150,40 +153,39 @@ function getRandomTimestamp(start, end) {
 // Function to create request data
 async function seedRequests() {
     try {
-        // Get all facilities and users
-        const facilities = await Facility.find();
-        const users = await User.find({ roles: { $in: ['Technician', 'Manager'] } });
-
+        await Request.deleteMany({})
         const requests = [];
 
         // Create 500 requests
         for (let i = 1; i <= 500; i++) {
             const statusOptions = ['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected'];
             const severityOptions = ['low', 'medium', 'high'];
+            const facilityId = Math.ceil(Math.random() * 5)
 
             const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
             const severity = severityOptions[Math.floor(Math.random() * severityOptions.length)];
-            const facility = facilities[Math.floor(Math.random() * facilities.length)].facility_id;
+            const facility = `F${facilityId.toString().padStart(3, '0')}`;
             const title = requestTitles[Math.floor(Math.random() * requestTitles.length)];
             const description = requestDescriptions[Math.floor(Math.random() * requestDescriptions.length)];
 
             let assigned_to = null;
             let assigned_by = null;
             let remarks = null;
+            const created_at = getRandomTimestamp(requestStartTime, createEndTime);
+            let updated_at = created_at;
 
             // If status is "Work in progress" or "Closed", assign values to "assigned_to", "assigned_by" and "remarks"
             if (status === 'Work in progress' || status === 'Closed') {
-                assigned_to = users[Math.floor(Math.random() * users.length)].user_id;
-                assigned_by = users[Math.floor(Math.random() * users.length)].user_id;
+                assigned_to = `U${String(Math.floor(Math.random() * 5) + 2 + facilityId * 5).padStart(6, '0')}`;
+                assigned_by = `U${String(facilityId + 1).padStart(6, '0')}`;
                 remarks = status === 'Closed' ? "Request closed." : "Work is ongoing, awaiting completion."
+                updated_at = getRandomTimestamp(created_at, requestEndTime);
             }
 
-            const created_at = getRandomTimestamp(requestStartTime, requestEndTime);
-            const updated_at = created_at;
 
             const request = {
-                request_id: `R${String(i).padStart(6, '0')}`,
-                created_by: users[Math.floor(Math.random() * users.length)].user_id,
+                request_id: `Req${created_at.getTime()}`,
+                created_by: `U${(Math.ceil(Math.random() * 100)).toString().padStart(6, '0')}`,
                 assigned_to: assigned_to,
                 assigned_by: assigned_by,
                 facility: facility,
@@ -192,8 +194,8 @@ async function seedRequests() {
                 description: description,
                 status: status,
                 remarks: remarks,
-                created_at: created_at, // Random timestamp
-                updated_at: updated_at  // Initially same as created_at
+                created_at: created_at,
+                updated_at: updated_at
             };
 
             requests.push(request);
@@ -201,16 +203,19 @@ async function seedRequests() {
 
         // Insert the generated requests into the database
         await Request.insertMany(requests);
-        console.log('Requests seeded successfully!');
+        console.log('Requests seeded!');
     } catch (error) {
         console.error('Error seeding requests:', error);
     }
 }
 
 async function seedData() {
+    console.log('Seeding data...');
     await seedUsers();
     await seedFacilities();
+    await seedRequests();
     console.log('Data seeding completed!');
+    initializeMaxIds();
 }
 
 module.exports = { seedData }

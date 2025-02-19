@@ -3,7 +3,6 @@ const express = require('express');
 require('dotenv').config()
 const connectDB = require('./config/db'); // File config/db.js để kết nối MongoDB
 const cors = require('cors'); // Import cors
-const { initializeMaxIds } = require('./utils/initMaxIds')
 const { seedData } = require('./utils/seedData')
 
 // Import các route
@@ -39,7 +38,6 @@ app.use('/messages', messageRoutes);
 
 // Lắng nghe trên cổng PORT
 app.listen(PORT, () => {
-  seedData()
-  initializeMaxIds(); // Initialize max IDs when the server starts
   console.log(`Server is running at http://localhost:${PORT}`);
+  seedData()
 });
