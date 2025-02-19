@@ -1,4 +1,5 @@
 const Request = require('../models/Request');
+const Facility = require('../models/Facility');
 const { validationResult } = require('express-validator');  // For request validation
 
 // Create a new request
@@ -35,21 +36,47 @@ exports.createRequest = async (req, res) => {
 // Get all requests with optional filters and pagination
 exports.getRequests = async (req, res) => {
     try {
-        const { status, facility, page = 1, limit = 10 } = req.query;  // Get filters and pagination info from query params
+        const { status, facility, page = 1, limit = 10, created_by_me } = req.query; // Get filters & pagination
 
         // Parse `limit` and `page` to integers
         const parsedLimit = parseInt(limit, 10);
         const parsedPage = parseInt(page, 10);
 
-        // Ensure page and limit are valid numbers
         if (parsedPage < 1 || parsedLimit < 1) {
             return res.status(400).json({ message: 'Page and limit must be greater than 0' });
         }
 
-        // Build filter object based on query parameters
-        let filter = {};
+        let filter = {}; // Default: Admins see all requests
+
         if (status) filter.status = status;
         if (facility) filter.facility = facility;
+
+        if (req.user.roles.includes('Admin')) {
+            // Admins see all requests (no filtering needed)
+        } 
+        else if (req.user.roles.includes('Manager')) {
+            // Check if `?created_by_me=true` is passed
+            if (created_by_me === 'true') {
+                // If `created_by_me=true`, show only requests created by this Manager
+                filter.created_by = req.user.user_id;
+            } else {
+                // Find the facility where the manager is the head
+                const managedFacility = await Facility.findOne({ head_manager: req.user.user_id });
+
+                if (managedFacility) {
+                    filter.facility = managedFacility.facility_id;
+                } else {
+                    return res.status(403).json({ message: "You are not responsible for any facility." });
+                }
+            }
+        } 
+        else {
+            // Requesters & Technicians only see their own requests
+            filter.$or = [
+                { created_by: req.user.user_id },
+                { assigned_to: req.user.user_id }
+            ];
+        }
 
         // Get total number of requests (for pagination metadata)
         const totalItems = await Request.countDocuments(filter);
@@ -60,22 +87,21 @@ exports.getRequests = async (req, res) => {
             .limit(parsedLimit)  // Limit the number of items per page
             .exec();
 
-        // Calculate total pages based on the total number of items and limit
+        // Calculate total pages
         const totalPages = Math.ceil(totalItems / parsedLimit);
 
-        // Send the paginated response
+        // Send the response
         res.json({
             totalItems,
             totalPages,
             currentPage: parsedPage,
-            data: requests  // Array of requests
+            data: requests
         });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
-
 
 // Get a single request by request_id
 exports.getRequest = async (req, res) => {

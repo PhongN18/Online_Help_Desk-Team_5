@@ -2,13 +2,13 @@ const express = require('express');
 const { check } = require('express-validator');  // For validation
 const router = express.Router();
 const requestController = require('../controllers/requestController');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
-// Route to create a new request with validation
+// 🔒 Create a new request (Only Requesters can create requests)
 router.post(
     '/',
+    protect, authorizeRoles('Requester'),
     [
-        check('request_id').notEmpty().withMessage('Request ID is required'),
-        check('created_by').notEmpty().withMessage('User ID of the creator is required'),
         check('facility').notEmpty().withMessage('Facility is required'),
         check('severity').isIn(['low', 'medium', 'high']).withMessage('Severity must be one of: low, medium, high'),
         check('description').notEmpty().withMessage('Description is required')
@@ -16,22 +16,16 @@ router.post(
     requestController.createRequest
 );
 
-// Route to get all requests with optional filters and pagination
-router.get(
-    '/',
-    [
-        check('status').optional().isIn(['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected']).withMessage('Invalid status value'),
-        check('facility').optional().notEmpty().withMessage('Facility should not be empty')
-    ],
-    requestController.getRequests
-);
+// 🔒 Get all requests (Admins see all, Managers only see their facility's requests)
+router.get('/', protect, requestController.getRequests);
 
-// Route to get a specific request by request_id
-router.get('/:request_id', requestController.getRequest);
+// 🔒 Get a specific request (Users can only access their own, Admins can see any)
+router.get('/:request_id', protect, requestController.getRequest);
 
-// Route to update a request by request_id with validation
+// 🔒 Update a request (Only Managers & Technicians can update request status)
 router.put(
     '/:request_id',
+    protect, authorizeRoles('Manager', 'Technician'),
     [
         check('status').optional().isIn(['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected']).withMessage('Invalid status value'),
         check('remarks').optional().notEmpty().withMessage('Remarks cannot be empty if provided')
@@ -39,7 +33,7 @@ router.put(
     requestController.updateRequest
 );
 
-// Route to delete a request by request_id
-router.delete('/:request_id', requestController.deleteRequest);
+// 🔒 Delete a request (Only Managers can delete requests)
+router.delete('/:request_id', protect, authorizeRoles('Manager', 'Admin'), requestController.deleteRequest);
 
 module.exports = router;

@@ -21,32 +21,25 @@ export default function Login() {
 
         try {
             let response;
-            if (view === "register") {
-                // Handle New Account Creation
-                response = await fetch("http://localhost:5000/api/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(formData),
-                });
-            } else {
-                // Handle Login
-                response = await fetch("http://localhost:5000/api/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email: formData.email, password: formData.password }),
-                });
-            }
+            let apiEndpoint = view === "register" ? "/auth/register" : "/auth/login";
+
+            response = await fetch(`http://localhost:3000${apiEndpoint}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || "Something went wrong");
+                throw new Error(result.message || "Something went wrong");
             }
 
-            // Store authentication token (if applicable)
-            localStorage.setItem("authToken", result.token);
+            // Store authentication tokens
+            localStorage.setItem("authToken", result.accessToken);
+            localStorage.setItem("refreshToken", result.refreshToken);
 
-            // Redirect user
+            // Redirect user based on role
             if (view === "register" || view === "user") {
                 navigate("/dashboard"); // Redirect to User Dashboard
             } else if (view === "admin") {
