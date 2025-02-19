@@ -10,7 +10,7 @@ exports.createRequest = async (req, res) => {
     }
 
     try {
-        const { created_by, facility, severity, description, status, remarks } = req.body;
+        const { created_by, facility, title, severity, description, status, remarks } = req.body;
 
         // Generate request_id
         const request_id = `Req${Date.now()}`;
@@ -20,6 +20,7 @@ exports.createRequest = async (req, res) => {
             request_id,
             created_by,
             facility,
+            title,
             severity,
             description,
             status: status || 'unassigned',  // Default status is 'unassigned'

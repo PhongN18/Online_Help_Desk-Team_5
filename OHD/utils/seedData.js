@@ -1,103 +1,216 @@
-// utils/seedData.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');  // Import bcryptjs to hash the password
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Facility = require('../models/Facility');
 
-// Function to get the largest user_id from the User collection
-async function getMaxUserId() {
-    const maxUser = await User.find().sort({ user_id: -1 }).limit(1);
-    if (maxUser.length > 0) {
-        // Extract numeric part and return the incremented value
-        return parseInt(maxUser[0].user_id.substring(1));  // Remove the prefix 'U' and convert to integer
-    }
-    return 0;  // If no users exist, start with 0
+// Helper function to generate random names
+function generateName() {
+    const firstNames = ['John', 'Jane', 'Alex', 'Emily', 'Chris', 'Sarah', 'Michael', 'Emma', 'David', 'Olivia'];
+    const lastNames = ['Smith', 'Johnson', 'Brown', 'Taylor', 'Lee', 'Davis', 'Miller', 'Wilson', 'Moore', 'Anderson'];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    return `${firstName} ${lastName}`;
 }
 
-// Function to get the largest facility_id from the Facility collection
-async function getMaxFacilityId() {
-    const maxFacility = await Facility.find().sort({ facility_id: -1 }).limit(1);
-    if (maxFacility.length > 0) {
-        // Extract numeric part and return the incremented value
-        return parseInt(maxFacility[0].facility_id.substring(1));  // Remove the prefix 'F' and convert to integer
-    }
-    return 0;  // If no facilities exist, start with 0
+// Helper function to generate a random email
+function generateEmail(name) {
+    const domain = 'example.com';
+    return `${name.replace(' ', '.').toLowerCase()}@${domain}`;
 }
 
-// Function to generate new User documents
-async function generateUserData() {
+// Function to create user data
+async function seedUsers() {
+    await User.deleteMany({})
+    const users = [];
+
+    // Create the Admin user
+    users.push({
+        user_id: 'U000001',
+        name: 'Admin User',
+        roles: ['Admin'],
+        email: generateEmail('Admin User'),
+        password: await bcrypt.hash('adminpassword', 10),
+        status: 'active'
+    });
+
+    // Create Manager users
+    for (let i = 2; i <= 6; i++) {
+        users.push({
+            user_id: `U${String(i).padStart(6, '0')}`,
+            name: generateName(),
+            roles: ['Manager', 'Technician'],
+            email: generateEmail(`Manager ${i}`),
+            password: await bcrypt.hash('password', 10),
+            status: 'active'
+        });
+    }
+
+    // Create Technician users
+    for (let i = 7; i <= 31; i++) {
+        users.push({
+            user_id: `U${String(i).padStart(6, '0')}`,
+            name: generateName(),
+            roles: ['Technician', 'Requester'],
+            email: generateEmail(`Technician ${i}`),
+            password: await bcrypt.hash('password', 10),
+            status: 'active'
+        });
+    }
+
+    // Create Requester users
+    for (let i = 32; i <= 100; i++) {
+        users.push({
+            user_id: `U${String(i).padStart(6, '0')}`,
+            name: generateName(),
+            roles: ['Requester'],
+            email: generateEmail(`Requester ${i}`),
+            password: await bcrypt.hash('password', 10),
+            status: 'active'
+        });
+    }
+
+    // Save all users to the database
     try {
-        const maxUserId = await getMaxUserId();  // Get the largest user_id from the database
-
-        // Generate 10 new users (for example)
-        for (let i = 0; i < 10; i++) {
-            const userId = `U${(maxUserId + 1 + i).toString().padStart(6, '0')}`;
-
-            // Hash the password before saving
-            const hashedPassword = await bcrypt.hash('password123', 10);  // Salt rounds = 10
-
-            const newUser = new User({
-                user_id: userId,
-                name: `User ${maxUserId + 1 + i}`,
-                email: `user${maxUserId + 1 + i}@example.com`,
-                password: hashedPassword,  // Use the hashed password
-                status: 'active',
-                roles: ['Requester']  // Default role for new users
-            });
-
-            // Save the new user document
-            await newUser.save();
-
-            console.log(`Created new user: ${userId}`);
-        }
-
-    } catch (err) {
-        console.error('Error generating user data:', err);
+        await User.insertMany(users);
+        console.log('Users seeded!');
+    } catch (error) {
+        console.error('Error seeding users:', error);
     }
 }
 
-// Function to generate new Facility documents
-async function generateFacilityData() {
-    try {
-        const maxFacilityId = await getMaxFacilityId();  // Get the largest facility_id from the database
+const facilityNames = ['Lab', 'Library', 'Gym', 'Cafeteria', 'Computer Center'];
 
-        // Generate 5 new facilities (for example)
+// Function to create facility data
+async function seedFacilities() {
+    try {
+        await Facility.deleteMany({})
+        const facilities = [];
+
+        // Create 5 facilities
         for (let i = 0; i < 5; i++) {
-            const facilityId = `F${(maxFacilityId + 1 + i).toString().padStart(3, '0')}`;
+            const techniciansAssigned = []
+            for (let j = 0; j < 5; j++) {
+                techniciansAssigned.push(`U${String(7 + i * 5 + j).padStart(6, '0')}`);
+            }
 
-
-            const newFacility = new Facility({
-                facility_id: facilityId,
-                name: `Facility ${maxFacilityId + 1 + i}`,
-                responsible: `U${(i + 1).toString().padStart(6, '0')}`,  // Assign the user_id of the responsible user
+            const facility = {
+                facility_id: `F${String(i + 1).padStart(3, '0')}`,
+                name: facilityNames[i],
+                head_manager: `U${String(i + 2).padStart(6, '0')}`,
+                technicians: techniciansAssigned,
                 status: 'Operating',
-                location: `Location ${maxFacilityId + 1 + i}`
-            });
+                location: `Location ${i + 1}`,
+            };
 
-            // Save the new facility document
-            await newFacility.save();
-
-            console.log(`Created new facility: ${facilityId} with responsible user: ${responsibleUser.user_id}`);
+            facilities.push(facility);
         }
 
-    } catch (err) {
-        console.error('Error generating facility data:', err);
+        // Insert the generated facilities into the database
+        await Facility.insertMany(facilities);
+        console.log('Facilities seeded!');
+    } catch (error) {
+        console.error('Error seeding facilities:', error);
     }
 }
 
-// Function to generate both User and Facility data
-async function seedData() {
+const requestDescriptions = [
+    "System malfunction in the facility.",
+    "Request for room maintenance.",
+    "Equipment repair required.",
+    "Issues with the server in the lab.",
+    "Cleaning needed in the cafeteria.",
+    "Power failure in the building.",
+    "Air conditioner not working properly.",
+    "Wi-Fi connectivity issue.",
+    "Issue with the security system."
+];
+
+const requestTitles = [
+    "System Error",
+    "Facility Maintenance",
+    "Equipment Repair",
+    "Server Issue",
+    "Cleaning Required",
+    "Power Outage",
+    "Temperature Issue",
+    "Network Issue",
+    "Security Problem"
+];
+
+const requestStartTime = new Date('2025-01-01T00:00:00Z'); // 1st January 2025
+const requestEndTime = new Date('2025-02-20T23:59:59Z'); // 20th February 2025
+function getRandomTimestamp(start, end) {
+
+    // Generate a random time in milliseconds between the start and end date
+    const randomTime = start.getTime() + Math.random() * (end.getTime() - start.getTime());
+
+    return new Date(randomTime);
+}
+
+// Function to create request data
+async function seedRequests() {
     try {
-        await generateUserData();
-        await generateFacilityData();
+        // Get all facilities and users
+        const facilities = await Facility.find();
+        const users = await User.find({ roles: { $in: ['Technician', 'Manager'] } });
 
-        console.log('All new data generated successfully');
-    } catch (err) {
-        console.error('Error generating new data:', err);
+        const requests = [];
+
+        // Create 500 requests
+        for (let i = 1; i <= 500; i++) {
+            const statusOptions = ['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected'];
+            const severityOptions = ['low', 'medium', 'high'];
+
+            const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
+            const severity = severityOptions[Math.floor(Math.random() * severityOptions.length)];
+            const facility = facilities[Math.floor(Math.random() * facilities.length)].facility_id;
+            const title = requestTitles[Math.floor(Math.random() * requestTitles.length)];
+            const description = requestDescriptions[Math.floor(Math.random() * requestDescriptions.length)];
+
+            let assigned_to = null;
+            let assigned_by = null;
+            let remarks = null;
+
+            // If status is "Work in progress" or "Closed", assign values to "assigned_to", "assigned_by" and "remarks"
+            if (status === 'Work in progress' || status === 'Closed') {
+                assigned_to = users[Math.floor(Math.random() * users.length)].user_id;
+                assigned_by = users[Math.floor(Math.random() * users.length)].user_id;
+                remarks = status === 'Closed' ? "Request closed." : "Work is ongoing, awaiting completion."
+            }
+
+            const created_at = getRandomTimestamp(requestStartTime, requestEndTime);
+            const updated_at = created_at;
+
+            const request = {
+                request_id: `R${String(i).padStart(6, '0')}`,
+                created_by: users[Math.floor(Math.random() * users.length)].user_id,
+                assigned_to: assigned_to,
+                assigned_by: assigned_by,
+                facility: facility,
+                title: title,
+                severity: severity,
+                description: description,
+                status: status,
+                remarks: remarks,
+                created_at: created_at, // Random timestamp
+                updated_at: updated_at  // Initially same as created_at
+            };
+
+            requests.push(request);
+        }
+
+        // Insert the generated requests into the database
+        await Request.insertMany(requests);
+        console.log('Requests seeded successfully!');
+    } catch (error) {
+        console.error('Error seeding requests:', error);
     }
 }
 
-// Run the seed function when the script is executed
-seedData().then(() => {
-    mongoose.disconnect();  // Disconnect from MongoDB after generating data
-});
+async function seedData() {
+    await seedUsers();
+    await seedFacilities();
+    console.log('Data seeding completed!');
+}
+
+module.exports = { seedData }

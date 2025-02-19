@@ -6,6 +6,7 @@ const RequestSchema = new mongoose.Schema({
     assigned_to: { type: String },  // user_id (String)
     assigned_by: { type: String },  // user_id (String)
     facility: { type: String, required: true },
+    title: { type: String, required: true },
     severity: { type: String, enum: ['low', 'medium', 'high'], required: true },
     description: { type: String, required: true },
     status: {
