@@ -10,7 +10,7 @@ export default function LandingPage() {
         <div className=" min-h-screen flex flex-col">
             {/* Hero Section */}
             <header className="bg-blue-600 text-white py-16 text-center">
-                <h1 className="text-4xl font-bold mb-4">Welcome to Online Help Desk</h1>
+                <h1 className="text-4xl font-bold mb-4">Online Help Desk</h1>
                 <p className="text-lg">Easily create and track your service requests within the campus.</p>
                 <Link to="/login">
                     <Button className="mt-6 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg shadow-md hover:bg-gray-200">
