@@ -42,33 +42,9 @@ exports.createFacility = async (req, res) => {
 // Get all facilities with optional pagination
 exports.getFacilities = async (req, res) => {
     try {
-        const { status, location, page = 1, limit = 10 } = req.query;
+        const facilities = await Facility.find();
 
-        const parsedLimit = parseInt(limit, 10);
-        const parsedPage = parseInt(page, 10);
-
-        if (parsedPage < 1 || parsedLimit < 1) {
-            return res.status(400).json({ message: 'Page and limit must be greater than 0' });
-        }
-
-        let filter = {};
-        if (status) filter.status = status;
-        if (location) filter.location = location;
-
-        const totalItems = await Facility.countDocuments(filter);
-        const totalPages = Math.ceil(totalItems / parsedLimit);
-
-        const facilities = await Facility.find(filter)
-            .skip((parsedPage - 1) * parsedLimit)
-            .limit(parsedLimit)
-            .exec();
-
-        res.json({
-            totalItems,
-            totalPages,
-            currentPage: parsedPage,
-            data: facilities  // Return the paginated list of facilities
-        });
+        res.json(facilities);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
