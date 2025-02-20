@@ -5,6 +5,42 @@ const Facility = require('../models/Facility');
 const Request = require('../models/Request');
 const { initializeMaxIds } = require('./initMaxIds')
 
+const facilityNames = ['Lab', 'Library', 'Gym', 'Cafeteria', 'Computer Center', 'Pool'];
+const noOfFacilities = facilityNames.length
+
+// Function to create facility data
+async function seedFacilities() {
+    try {
+        await Facility.deleteMany({})
+        const facilities = [];
+
+        // Create facilities
+        for (let i = 0; i < noOfFacilities; i++) {
+            const techniciansAssigned = []
+            for (let j = 0; j < 5; j++) {
+                techniciansAssigned.push(`U${String(noOfFacilities + 2 + i * 5 + j).padStart(6, '0')}`);
+            }
+
+            const facility = {
+                facility_id: `F${String(i + 1).padStart(3, '0')}`,
+                name: facilityNames[i],
+                head_manager: `U${String(i + 2).padStart(6, '0')}`,
+                technicians: techniciansAssigned,
+                status: 'Operating',
+                location: `Location ${i + 1}`,
+            };
+
+            facilities.push(facility);
+        }
+
+        // Insert the generated facilities into the database
+        await Facility.insertMany(facilities);
+        console.log('Facilities seeded!');
+    } catch (error) {
+        console.error('Error seeding facilities:', error);
+    }
+}
+
 // Helper function to generate random names
 function generateName() {
     const firstNames = ['John', 'Jane', 'Alex', 'Emily', 'Chris', 'Sarah', 'Michael', 'Emma', 'David', 'Olivia'];
@@ -36,11 +72,11 @@ async function seedUsers() {
     });
 
     // Create Manager users
-    for (let i = 2; i <= 6; i++) {
+    for (let i = 1; i <= noOfFacilities; i++) {
         users.push({
-            user_id: `U${String(i).padStart(6, '0')}`,
+            user_id: `U${String(i + 1).padStart(6, '0')}`,
             name: generateName(),
-            roles: ['Manager', 'Technician'],
+            roles: ['Manager', 'Technician', 'Requester'],
             email: generateEmail(`Manager ${i}`),
             password: await bcrypt.hash('password', 10),
             status: 'active'
@@ -48,9 +84,10 @@ async function seedUsers() {
     }
 
     // Create Technician users
-    for (let i = 7; i <= 31; i++) {
+    const noOfTechnicians = noOfFacilities * 5;
+    for (let i = 1; i <= noOfTechnicians; i++) {
         users.push({
-            user_id: `U${String(i).padStart(6, '0')}`,
+            user_id: `U${String(i + noOfFacilities + 1).padStart(6, '0')}`,
             name: generateName(),
             roles: ['Technician', 'Requester'],
             email: generateEmail(`Technician ${i}`),
@@ -60,9 +97,9 @@ async function seedUsers() {
     }
 
     // Create Requester users
-    for (let i = 32; i <= 100; i++) {
+    for (let i = 1; i <= 100; i++) {
         users.push({
-            user_id: `U${String(i).padStart(6, '0')}`,
+            user_id: `U${String(i + noOfFacilities + noOfTechnicians + 1).padStart(6, '0')}`,
             name: generateName(),
             roles: ['Requester'],
             email: generateEmail(`Requester ${i}`),
@@ -77,41 +114,6 @@ async function seedUsers() {
         console.log('Users seeded!');
     } catch (error) {
         console.error('Error seeding users:', error);
-    }
-}
-
-const facilityNames = ['Lab', 'Library', 'Gym', 'Cafeteria', 'Computer Center'];
-
-// Function to create facility data
-async function seedFacilities() {
-    try {
-        await Facility.deleteMany({})
-        const facilities = [];
-
-        // Create 5 facilities
-        for (let i = 0; i < 5; i++) {
-            const techniciansAssigned = []
-            for (let j = 0; j < 5; j++) {
-                techniciansAssigned.push(`U${String(7 + i * 5 + j).padStart(6, '0')}`);
-            }
-
-            const facility = {
-                facility_id: `F${String(i + 1).padStart(3, '0')}`,
-                name: facilityNames[i],
-                head_manager: `U${String(i + 2).padStart(6, '0')}`,
-                technicians: techniciansAssigned,
-                status: 'Operating',
-                location: `Location ${i + 1}`,
-            };
-
-            facilities.push(facility);
-        }
-
-        // Insert the generated facilities into the database
-        await Facility.insertMany(facilities);
-        console.log('Facilities seeded!');
-    } catch (error) {
-        console.error('Error seeding facilities:', error);
     }
 }
 
@@ -160,7 +162,7 @@ async function seedRequests() {
         for (let i = 1; i <= 500; i++) {
             const statusOptions = ['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected'];
             const severityOptions = ['low', 'medium', 'high'];
-            const facilityId = Math.ceil(Math.random() * 5)
+            const facilityId = Math.ceil(Math.random() * noOfFacilities)
 
             const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
             const severity = severityOptions[Math.floor(Math.random() * severityOptions.length)];
@@ -175,10 +177,11 @@ async function seedRequests() {
             let updated_at = created_at;
 
             // If status is "Work in progress" or "Closed", assign values to "assigned_to", "assigned_by" and "remarks"
-            if (status === 'Work in progress' || status === 'Closed') {
+            if (status === 'Work in progress' || status === 'Closed' || status === 'Assigned') {
                 assigned_to = `U${String(Math.floor(Math.random() * 5) + 2 + facilityId * 5).padStart(6, '0')}`;
                 assigned_by = `U${String(facilityId + 1).padStart(6, '0')}`;
-                remarks = status === 'Closed' ? "Request closed." : "Work is ongoing, awaiting completion."
+                remarks = status === 'Closed' ? "Request closed." :
+                ( status === 'Assigned' ? "Assigned to technician" : "Work is ongoing, awaiting completion.")
                 updated_at = getRandomTimestamp(created_at, requestEndTime);
             }
 
