@@ -37,7 +37,7 @@ exports.createRequest = async (req, res) => {
 // Get all requests with optional filters and pagination
 exports.getRequests = async (req, res) => {
     try {
-        const { status, facility, page = 1, limit = 10, created_by_me } = req.query; // Get filters & pagination
+        const { status, facility, page = 1, limit = 10, created_by_me, assigned_requests } = req.query; // Get filters & pagination
 
         // Parse `limit` and `page` to integers
         const parsedLimit = parseInt(limit, 10);
@@ -54,8 +54,8 @@ exports.getRequests = async (req, res) => {
 
         if (req.user.roles.includes('Admin')) {
             // Admins see all requests (no filtering needed)
-        } 
-        else if (req.user.roles.includes('Manager')) {
+        }
+        if (req.user.roles.includes('Manager')) {
             // Check if `?created_by_me=true` is passed
             if (created_by_me === 'true') {
                 // If `created_by_me=true`, show only requests created by this Manager
@@ -70,7 +70,7 @@ exports.getRequests = async (req, res) => {
                     return res.status(403).json({ message: "You are not responsible for any facility." });
                 }
             }
-        } 
+        }
         else {
             // Requesters & Technicians only see their own requests
             filter.$or = [

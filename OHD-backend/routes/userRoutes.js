@@ -15,7 +15,7 @@ router.post('/',
 );
 
 // 🔒 Get all users (only accessible by Admins)
-router.get('/', protect, authorizeRoles('Admin'), userController.getUsers);
+router.get('/', protect, userController.getUsers);
 
 // 🔒 Get a single user (users can only access their own data, Admins can access any)
 router.get('/:user_id', protect, (req, res, next) => {

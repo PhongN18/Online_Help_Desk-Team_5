@@ -8,6 +8,7 @@ export default function Dashboard() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [view, setView] = useState("my_requests"); // Default view
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -48,9 +49,9 @@ export default function Dashboard() {
     return (
         <div>
             <DashboardNavbar user={user} />
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <RequestList user={user} />
-                <RoleBasedActions roles={user.roles} />
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <RequestList user={user} view={view}/>
+                <RoleBasedActions roles={user.roles} setView={setView} />
             </div>
         </div>
     );

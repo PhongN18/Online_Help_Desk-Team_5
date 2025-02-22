@@ -13,7 +13,7 @@ export default function DashboardNavbar({ user }) {
         <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
             <h1 className="text-xl font-semibold">User Dashboard</h1>
             <div className="flex items-center gap-4">
-                <span className="text-lg">{user.name} ({user.roles.join(", ")})</span>
+                <span className="text-lg">{user.name} ({user.roles[0]}) - ID: {user.user_id}</span>
                 <Button onClick={handleLogout}>Logout</Button>
             </div>
         </nav>
