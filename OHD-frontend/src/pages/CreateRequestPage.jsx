@@ -1,5 +1,4 @@
 import DashboardNavbar from "@/components/DashboardNavbar";
-import Footer from "@/components/Footer";
 import RequestForm from "@/components/RequestForm";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -50,7 +49,6 @@ export default function CreateRequestPage() {
         <div className="bg-[#ddd]">
             <DashboardNavbar user={user} />
             <RequestForm user={user} />
-            <Footer />
         </div>
     );
 }

@@ -1,5 +1,4 @@
 import FeatureCard from "@/components/FeatureCard";
-import Footer from "@/components/Footer";
 import StepCard from "@/components/StepCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";

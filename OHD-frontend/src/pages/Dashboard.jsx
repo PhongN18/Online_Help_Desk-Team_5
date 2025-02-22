@@ -1,5 +1,4 @@
 import DashboardNavbar from "@/components/DashboardNavbar";
-import Footer from "@/components/Footer";
 import RequestList from "@/components/RequestList";
 import RoleBasedActions from "@/components/RoleBasedActions";
 import { useEffect, useState } from "react";
@@ -54,7 +53,6 @@ export default function Dashboard() {
                 <RequestList user={user} view={view}/>
                 <RoleBasedActions roles={user.roles} setView={setView} />
             </div>
-            <Footer />
         </div>
     );
 }
