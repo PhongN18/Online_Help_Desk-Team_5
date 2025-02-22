@@ -39,7 +39,7 @@ exports.createFacility = async (req, res) => {
     }
 };
 
-// Get all facilities with optional pagination
+// Get all facilities
 exports.getFacilities = async (req, res) => {
     try {
         const facilities = await Facility.find();

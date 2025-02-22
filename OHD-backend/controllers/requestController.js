@@ -37,9 +37,8 @@ exports.createRequest = async (req, res) => {
 // Get all requests with optional filters and pagination
 exports.getRequests = async (req, res) => {
     try {
-        const { status, facility, page = 1, limit = 10, created_by_me, assigned_requests } = req.query; // Get filters & pagination
+        const { status, facility, page = 1, limit = 10, created_by_me, assigned_to } = req.query; // Added assigned_to
 
-        // Parse `limit` and `page` to integers
         const parsedLimit = parseInt(limit, 10);
         const parsedPage = parseInt(page, 10);
 
@@ -52,27 +51,33 @@ exports.getRequests = async (req, res) => {
         if (status) filter.status = status;
         if (facility) filter.facility = facility;
 
+        // Admin sees all requests
         if (req.user.roles.includes('Admin')) {
             // Admins see all requests (no filtering needed)
         }
-        if (req.user.roles.includes('Manager')) {
-            // Check if `?created_by_me=true` is passed
+        // Manager sees requests for their facility and optionally their own created requests
+        else if (req.user.roles.includes('Manager')) {
             if (created_by_me === 'true') {
-                // If `created_by_me=true`, show only requests created by this Manager
-                filter.created_by = req.user.user_id;
+                filter.created_by = req.user.user_id; // Manager wants to see their created requests
+            } else if (assigned_to) {
+                filter.assigned_to = assigned_to;
             } else {
-                // Find the facility where the manager is the head
                 const managedFacility = await Facility.findOne({ head_manager: req.user.user_id });
-
                 if (managedFacility) {
-                    filter.facility = managedFacility.facility_id;
+                    filter.facility = managedFacility.facility_id; // Filter by facility managed by manager
                 } else {
                     return res.status(403).json({ message: "You are not responsible for any facility." });
                 }
             }
         }
+        // Requester and Technician can see their own created requests and assigned requests
         else {
-            // Requesters & Technicians only see their own requests
+            // If `assigned_to` is passed, filter by assigned requests
+            if (assigned_to) {
+                filter.assigned_to = assigned_to;
+            }
+
+            // Filter by requests created by the user or assigned to them
             filter.$or = [
                 { created_by: req.user.user_id },
                 { assigned_to: req.user.user_id }

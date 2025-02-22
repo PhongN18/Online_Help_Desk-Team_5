@@ -1,20 +1,56 @@
+import DashboardNavbar from "@/components/DashboardNavbar";
+import Footer from "@/components/Footer";
 import RequestForm from "@/components/RequestForm";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function CreateRequestPage() {
-  // Mock facility list (Replace with API call later)
-    const facilities = [
-        { facility_id: "lab_a", name: "Lab A" },
-        { facility_id: "library", name: "Library" },
-        { facility_id: "hostel", name: "Hostel" },
-    ];
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
-    const loggedInUserId = "user_123"; // Replace with actual user ID from auth
+    useEffect(() => {
+        const authToken = localStorage.getItem("authToken");
+
+        if (!authToken) {
+            navigate("/login");
+            return;
+        }
+
+        const fetchUser = async () => {
+            try {
+                const response = await fetch("http://localhost:3000/auth/me", {
+                    headers: { Authorization: `Bearer ${authToken}` },
+                });
+
+                if (!response.ok) {
+                    throw new Error("Session expired. Please log in again.");
+                }
+
+                const data = await response.json();
+                setUser(data);
+            } catch (err) {
+                setError(err.message);
+                localStorage.removeItem("authToken");
+                navigate("/login");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUser();
+    }, [navigate]);
+
+    if (loading) return <p>Loading...</p>;
+    if (error) return <p className="text-red-500">{error}</p>;
+    if (!user) return <p>User not found</p>; // Check if the user is null or not available
 
     return (
-        <div className="custom-container">
-            <div className="flex items-center justify-center min-h-screen p-4">
-                <RequestForm facilities={facilities} userId={loggedInUserId} />
-            </div>
+        <div className="bg-[#ddd]">
+            <DashboardNavbar user={user} />
+            <RequestForm user={user} />
+            <Footer />
         </div>
-    )
+    );
 }

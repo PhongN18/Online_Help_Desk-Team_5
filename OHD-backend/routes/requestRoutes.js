@@ -7,7 +7,7 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 // 🔒 Create a new request (Only Requesters can create requests)
 router.post(
     '/',
-    protect, authorizeRoles('Requester'),
+    protect, authorizeRoles('Requester', 'Technician', 'Manager'),
     [
         check('facility').notEmpty().withMessage('Facility is required'),
         check('severity').isIn(['low', 'medium', 'high']).withMessage('Severity must be one of: low, medium, high'),
