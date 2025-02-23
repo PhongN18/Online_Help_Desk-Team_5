@@ -49,9 +49,6 @@ export default function LandingPage() {
 
             {/* FAQ Section */}
             <FAQSection />
-
-            {/* Footer */}
-            <Footer />
         </div>
     );
 }

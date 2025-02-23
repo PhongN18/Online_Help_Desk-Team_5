@@ -101,6 +101,25 @@ exports.getUser = async (req, res) => {
     }
 };
 
+// Fetch multiple users by their IDs (comma-separated)
+exports.getUsersByIds = async (req, res) => {
+    try {
+        const { ids } = req.query; // Get `ids` parameter from the request
+
+        if (!ids) {
+            return res.status(400).json({ message: "No user IDs provided" });
+        }
+
+        const userIdsArray = ids.split(","); // Convert comma-separated string to an array
+        const users = await User.find({ user_id: { $in: userIdsArray } });
+
+        res.json({ totalUsers: users.length, data: users });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
 // Get requests created by a user
 exports.getCreatedRequests = async (req, res) => {
     try {

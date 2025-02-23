@@ -58,7 +58,7 @@ exports.getRequests = async (req, res) => {
         // Manager sees requests for their facility and optionally their own created requests
         else if (req.user.roles.includes('Manager')) {
             if (created_by_me === 'true') {
-                filter.created_by = req.user.user_id; // Manager wants to see their created requests
+                filter.created_by = req.user.user_id;
             } else if (assigned_to) {
                 filter.assigned_to = assigned_to;
             } else {
@@ -70,17 +70,17 @@ exports.getRequests = async (req, res) => {
                 }
             }
         }
-        // Requester and Technician can see their own created requests and assigned requests
-        else {
-            // If `assigned_to` is passed, filter by assigned requests
-            if (assigned_to) {
+        else if (req.user.roles.includes('Technician')) {
+            if (created_by_me === 'true') {
+                filter.created_by = req.user.user_id
+            } else if (assigned_to) {
                 filter.assigned_to = assigned_to;
             }
-
+        }
+        else {
             // Filter by requests created by the user or assigned to them
             filter.$or = [
-                { created_by: req.user.user_id },
-                { assigned_to: req.user.user_id }
+                { created_by: req.user.user_id }
             ];
         }
 
