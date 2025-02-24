@@ -1,6 +1,7 @@
 const Request = require('../models/Request');
 const Facility = require('../models/Facility');
 const { validationResult } = require('express-validator');  // For request validation
+const sendEmail = require('../utils/emailService');
 
 // Create a new request
 exports.createRequest = async (req, res) => {
@@ -10,7 +11,7 @@ exports.createRequest = async (req, res) => {
     }
 
     try {
-        const { created_by, facility, title, severity, description, status, remarks } = req.body;
+        const { created_by, facility, title, severity, description, status, remarks, user_email } = req.body;
 
         // Generate request_id
         const request_id = `Req${Date.now()}`;
@@ -29,6 +30,26 @@ exports.createRequest = async (req, res) => {
 
         await request.save();
         res.status(201).json(request);
+
+        const facilityDetail = await Facility.findOne({ facility_id: facility });
+
+        try {
+            await sendEmail(
+                user_email,
+                "Request created successfully",
+                `Created request`,
+                `
+                <p>Your request has been created successfully and sent to the responsible manager.</p>
+                <p><strong>Facility:</strong> ${facilityDetail.name}</p>
+                <p><strong>Title:</strong> ${title}</p>
+                <p><strong>Severity:</strong> ${severity}</p>
+                <p><strong>Description:</strong> ${description}</p>
+                <p>Thank you for using Online Help Desk.</p>
+                `
+            );
+        } catch (emailError) {
+            console.error("Email sending failed:", emailError.message);
+        }
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
@@ -37,7 +58,7 @@ exports.createRequest = async (req, res) => {
 // Get all requests with optional filters and pagination
 exports.getRequests = async (req, res) => {
     try {
-        const { status, facility, page = 1, limit = 10, created_by_me, assigned_to } = req.query; // Added assigned_to
+        const { status, facility, page = 1, limit = 10, created_by_me, assigned_to, need_handle } = req.query; // Added assigned_to
 
         const parsedLimit = parseInt(limit, 10);
         const parsedPage = parseInt(page, 10);
@@ -64,7 +85,11 @@ exports.getRequests = async (req, res) => {
             } else {
                 const managedFacility = await Facility.findOne({ head_manager: req.user.user_id });
                 if (managedFacility) {
-                    filter.facility = managedFacility.facility_id; // Filter by facility managed by manager
+                    filter.facility = managedFacility.facility_id;
+                    if (need_handle) {
+                        filter.closing_reason = { $exists: true }; // Filter requests that need handling
+                        filter.manager_handle = { $exists: false }; // Filter requests that need handling
+                    }
                 } else {
                     return res.status(403).json({ message: "You are not responsible for any facility." });
                 }

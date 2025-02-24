@@ -28,10 +28,15 @@ export default function RequestList({ user, view }) {
             if (view === "my_requests") {
                 url += `&created_by_me=true`;
             } else if (view === "facility_requests") {
-                url += `&facility=${user.facility_id}`; // Assume facility_id is available
+                url += `&facility=${user.user_id}`;
             } else if (view === "assigned_requests") {
                 url += `&assigned_to=${user.user_id}`;
+            } else if (view === 'need_handle') {
+                url += `&need_handle=${user.user_id}`;
             }
+
+            console.log(url);
+            
 
             const res = await fetch(url, {
                 headers: {
@@ -105,7 +110,7 @@ export default function RequestList({ user, view }) {
                         </tr>
                     ) : (
                         requests.map((req, index) => (
-                            <tr key={req.request_id} className={`border-b ${req.closing_reason ? "bg-red-400" : ""}`}>
+                            <tr key={req.request_id} className={`border-b ${(req.closing_reason && !req.manager_handle) ? "bg-yellow-200" : ""}`}>
                                 <td className="px-4 py-2 text-center">{(currentPage - 1) * 10 + index + 1}</td>
                                 <td className="px-4 py-2">{req.title}</td>
                                 <td className="px-4 py-2 text-center">{req.facility}</td>

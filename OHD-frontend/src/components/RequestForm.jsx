@@ -88,6 +88,7 @@ export default function RequestForm({ user }) {
             status: "Unassigned", // "Unassigned" in uppercase to match the enum
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            user_email: user.email
         };
 
         try {
