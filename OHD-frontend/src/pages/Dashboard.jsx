@@ -47,7 +47,7 @@ export default function Dashboard() {
     if (error) return <p className="text-center p-6 text-red-500">{error}</p>;
 
     return (
-        <div>
+        <div  style={{minHeight: '100vh'}}>
             <DashboardNavbar user={user} />
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                 <RequestList user={user} view={view}/>
