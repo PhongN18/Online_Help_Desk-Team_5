@@ -188,7 +188,7 @@ async function seedRequests() {
 
             const request = {
                 request_id: `Req${created_at.getTime()}`,
-                created_by: `U${(Math.ceil(Math.random() * 100)).toString().padStart(6, '0')}`,
+                created_by: `U${(Math.ceil(Math.random() * 100) + noOfFacilities + 1).toString().padStart(6, '0')}`,
                 assigned_to: assigned_to,
                 assigned_by: assigned_by,
                 facility: facility,

@@ -15,6 +15,7 @@ export default function RequestDetail() {
     const [assignedTechnician, setAssignedTechnician] = useState()
     const [selectedTechnician, setSelectedTechnician] = useState("");
     const [rejectReason, setRejectReason] = useState("");
+    const [closingReason, setClosingReason] = useState("");
     const [showTechnicianDropdown, setShowTechnicianDropdown] = useState(false);
     const [showRejectInput, setShowRejectInput] = useState(false);
     const navigate = useNavigate();
@@ -57,6 +58,7 @@ export default function RequestDetail() {
                 if (!response.ok) throw new Error("Failed to fetch request details.");
                 const requestData = await response.json();
                 setRequest(requestData);
+                setClosingReason(requestData.closing_reason)
 
                 // Fetch facility, manager, and technicians only if request exists
                 fetchFacilityDetail(requestData.facility, authToken);
@@ -248,6 +250,65 @@ export default function RequestDetail() {
         }
     };
 
+    const handleClosingReason = async (action) => {
+        try {
+            const closingUpdate = {}
+
+            if (action === 'approve') {
+                closingUpdate.status = 'Closed';
+                closingUpdate.closing_reason = `Closed by requester, reason: ${closingReason}`
+                closingUpdate.manager_handle = 'approved'
+            } else {
+                closingUpdate.closing_reason = `Closing request declined by manager`
+                closingUpdate.manager_handle = 'declined'
+            }
+
+            const response = await fetch(`http://localhost:3000/requests/${request_id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                },
+                body: JSON.stringify(closingUpdate),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update closing reason.");
+            }
+
+            if (action === "approve") {
+                alert("Closing reason approved successfully.");
+            } else {
+                alert("Closing reason declined successfully.");
+            }
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    const handleSubmitClosing = async () => {
+        try {
+            const response = await fetch(`http://localhost:3000/requests/${request_id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                },
+                body: JSON.stringify({ closing_reason: closingReason }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to close request.");
+            }
+
+            alert("Closing request sent to Manager.");
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
     if (loading) return <p>Loading request details...</p>;
     if (error) return <p>Error: {error}</p>;
     if (!request) return <p>No request found.</p>;
@@ -266,10 +327,30 @@ export default function RequestDetail() {
                 <h2 className="text-2xl font-semibold mb-4">Request Details</h2>
                 <p><strong>Request ID:</strong> {request.request_id}</p>
                 <p><strong>Facility:</strong> {facility?.name} - {facility?.facility_id}</p>
+                <p><strong>Created By:</strong> {request.created_by}</p>
                 <p><strong>Assigned By:</strong> ID: {manager?.user_id} - {manager?.name}</p>
                 <p><strong>Assigned To:</strong> ID: {request?.assigned_to} - {assignedTechnician?.name || "Unassigned"}</p>
+                <p><strong>Title:</strong> {request.title}</p>
+                <p><strong>Severity:</strong> {request.severity}</p>
+                <p><strong>Description:</strong> {request.description}</p>
                 <p><strong>Remarks:</strong> {request.remarks || "No remarks"}</p>
+                {user.user_id === request.created_by && <p><strong>Closing Reason:</strong> {request.closing_reason || "No closing reason"}</p>}
                 <p><strong>Status:</strong> {request.status}</p>
+                <p><strong>Created At:</strong> {new Date(request.createdAt).toLocaleString()}</p>
+                <p><strong>Updated At:</strong> {new Date(request.updatedAt).toLocaleString()}</p>
+
+                {(user.user_id === request.created_by && (request.status !== 'Rejected' || request.status !== 'Closed') && request.closing_reason) ? (
+                    <div>
+                        <h3 className="text-xl font-semibold mt-6">Closing Reason: {request.closing_reason}</h3>
+                        <p>Waiting for Facility's Head Manager approval...</p>
+                    </div>
+                ) : (
+                    <div>
+                        <h3 className="text-xl font-semibold mt-6">Close the Request (please provide reason)</h3>
+                        <textarea className="border w-full p-2 rounded" placeholder="Closing reason" value={closingReason} onChange={(e) => setClosingReason(e.target.value)} />
+                        <button onClick={handleSubmitClosing} className="px-4 py-2 rounded mt-2 bg-blue-500 text-white" >Send closing request</button>
+                    </div>
+                )}
 
                 {/* Technician Actions */}
                 {user?.roles.includes("Technician") && user.user_id === request.assigned_to && (
@@ -293,7 +374,7 @@ export default function RequestDetail() {
 
                 {/* Manager Actions */}
                 {isManagerOfThisFacility && request.status === "Unassigned" && (
-                    <>
+                    <div>
                         <button onClick={() => setShowTechnicianDropdown(!showTechnicianDropdown)} className="bg-blue-500 text-white px-4 py-2 rounded mt-2">
                             Assign Technician
                         </button>
@@ -317,7 +398,15 @@ export default function RequestDetail() {
                                 <button onClick={handleRejectRequest} className="bg-red-500 text-white px-4 py-2 rounded mt-2">Confirm Rejection</button>
                             </>
                         )}
-                    </>
+                    </div>
+                )}
+
+                {isManagerOfThisFacility && request.closing_reason && (
+                    <div>
+                        <h3 className="text-xl font-semibold mt-6 text-red-500"><strong>Closing Reason:</strong> {request.closing_reason}</h3>
+                        <button onClick={() => handleClosingReason('approve')} className="px-4 py-2 rounded mt-2 bg-blue-500 text-white" >Approve Closing Reason</button>
+                        <button onClick={() => handleClosingReason('decline')} className="px-4 py-2 rounded mt-2 bg-red-500 text-white" >Decline Closing Reason</button>
+                    </div>
                 )}
             </div>
         </>
