@@ -10,6 +10,14 @@ export default function RequestList({ user, view }) {
     const [totalItems, setTotalItems] = useState(0);
     const navigate = useNavigate();
 
+    const statusStyle = {
+        unassigned: "bg-yellow-600",
+        assigned: "bg-blue-600",
+        workinprogress: "bg-green-600",
+        closed: "bg-gray-500",
+        rejected: "bg-red-600"
+    }
+
     const fetchRequests = async (page) => {
         setLoading(true);
         setError(null);
@@ -58,20 +66,36 @@ export default function RequestList({ user, view }) {
     if (loading) return <p>Loading requests...</p>;
     if (error) return <p>Error: {error}</p>;
 
+    let title
+    switch (view) {
+        case "my_requests":
+            title = "Your Created Requests";
+            break;
+        case "facility_requests":
+            title = "Facility Requests";
+            break;
+        case "assigned_requests":
+            title = "Requests Assigned to You";
+            break;
+        default:
+            title = "Requests";
+    }
+
     return (
-        <div className="bg-white shadow-md p-6 rounded-lg md:col-span-2">
-            <h2 className="text-xl font-semibold mb-4">Your Requests</h2>
+        <div className="bg-white shadow-md p-6 rounded-lg md:col-span-3">
+            <h2 className="text-xl font-semibold mb-4">{title}</h2>
             
             {/* Table for Requests */}
             <table className="w-full table-auto">
                 <thead>
                     <tr>
-                        <th className="px-4 py-2">No.</th>
-                        <th className="px-4 py-2">Title</th>
-                        <th className="px-4 py-2">Facility</th>
-                        <th className="px-4 py-2">Assigned By</th>
-                        <th className="px-4 py-2">Assigned To</th>
-                        <th className="px-4 py-2">Status</th>
+                        <th className="w-1/12 px-4 py-2">No.</th>
+                        <th className="w-3/12 px-4 py-2">Title</th>
+                        <th className="w-2/12 px-4 py-2">Facility</th>
+                        <th className="w-1/12 px-4 py-2">Manager</th>
+                        <th className="w-1/12 px-4 py-2">Technician</th>
+                        <th className="w-2/12 px-4 py-2">Status</th>
+                        <th className="w-2/12 px-4 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -81,20 +105,21 @@ export default function RequestList({ user, view }) {
                         </tr>
                     ) : (
                         requests.map((req, index) => (
-                            <tr key={req.request_id} className="border-b">
+                            <tr key={req.request_id} className={`border-b ${req.closing_reason ? "bg-red-400" : ""}`}>
                                 <td className="px-4 py-2 text-center">{(currentPage - 1) * 10 + index + 1}</td>
-                                <td className="px-4 py-2">
-                                    <a
-                                        href={`/request-detail/${req.request_id}`}
-                                        className="text-blue-600 hover:underline"
-                                    >
-                                        {req.title}
-                                    </a>
+                                <td className="px-4 py-2">{req.title}</td>
+                                <td className="px-4 py-2 text-center">{req.facility}</td>
+                                <td className="px-4 py-2 text-center">{req.assigned_by}</td>
+                                <td className="px-4 py-2 text-center">{req.assigned_to}</td>
+                                <td className="px-4 py-2 text-center"><span className={`block py-1 text-sm rounded font-bold text-white ${statusStyle[req.status.toLowerCase().replace(/\s+/g, '')]}`}>{req.status}</span></td>
+                                <td className="px-4 py-2 text-center">
+                                <a
+                                    href={`/request-detail/${req.request_id}`}
+                                    className="text-blue-300 hover:underline text-sm"
+                                >
+                                    View Details
+                                </a>
                                 </td>
-                                <td className="px-4 py-2">{req.facility}</td>
-                                <td className="px-4 py-2">{req.assigned_by}</td>
-                                <td className="px-4 py-2">{req.assigned_to}</td>
-                                <td className="px-4 py-2">{req.status}</td>
                             </tr>
                         ))
                     )}

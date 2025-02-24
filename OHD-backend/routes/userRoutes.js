@@ -17,14 +17,11 @@ router.post('/',
 // 🔒 Get all users (only accessible by Admins)
 router.get('/', protect, userController.getUsers);
 
-// 🔒 Get a single user (users can only access their own data, Admins can access any)
-router.get('/:user_id', protect, (req, res, next) => {
-    if (req.user.roles.includes('Admin') || req.user.user_id === req.params.user_id) {
-        return userController.getUser(req, res);
-    } else {
-        return res.status(403).json({ message: 'Forbidden: You can only view your own profile' });
-    }
-});
+// 🔒 Get a single user
+router.get('/:user_id', protect, userController.getUser);
+
+// Get multiple users
+router.get("/batch", protect, userController.getUsersByIds);
 
 // 🔒 Update user (users can only update their own profile, Admins can update anyone)
 router.put('/:user_id',

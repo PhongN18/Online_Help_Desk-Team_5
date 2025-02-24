@@ -7,7 +7,7 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 // 🔒 Create a new request (Only Requesters can create requests)
 router.post(
     '/',
-    protect, authorizeRoles('Requester'),
+    protect, authorizeRoles('Requester', 'Technician', 'Manager'),
     [
         check('facility').notEmpty().withMessage('Facility is required'),
         check('severity').isIn(['low', 'medium', 'high']).withMessage('Severity must be one of: low, medium, high'),
@@ -22,10 +22,10 @@ router.get('/', protect, requestController.getRequests);
 // 🔒 Get a specific request (Users can only access their own, Admins can see any)
 router.get('/:request_id', protect, requestController.getRequest);
 
-// 🔒 Update a request (Only Managers & Technicians can update request status)
+// 🔒 Update a request
 router.put(
     '/:request_id',
-    protect, authorizeRoles('Manager', 'Technician'),
+    protect,
     [
         check('status').optional().isIn(['Unassigned', 'Assigned', 'Work in progress', 'Closed', 'Rejected']).withMessage('Invalid status value'),
         check('remarks').optional().notEmpty().withMessage('Remarks cannot be empty if provided')
