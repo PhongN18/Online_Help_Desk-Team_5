@@ -121,7 +121,7 @@ export default function RequestList({ user, view }) {
                     {/* Dropdown chọn Facility */}
                     <select
                         value={selectedFacility}
-                        onChange={(e) => setSelectedFacility(e.target.value)}
+                        onChange={(e) => {setSelectedFacility(e.target.value); setCurrentPage(1)}}
                         className="border border-gray-300 p-2 rounded-lg"
                     >
                         <option value="">All Facilities</option>
@@ -135,7 +135,7 @@ export default function RequestList({ user, view }) {
                     {/* Dropdown chọn Status */}
                     <select
                         value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        onChange={(e) => {setSelectedStatus(e.target.value); setCurrentPage(1)}}
                         className="border border-gray-300 p-2 rounded-lg"
                     >
                         <option value="">All Status</option>
@@ -155,10 +155,10 @@ export default function RequestList({ user, view }) {
                         <th className="w-1/12 px-4 py-2">No.</th>
                         <th className="w-3/12 px-4 py-2">Title</th>
                         <th className="w-2/12 px-4 py-2">Facility</th>
-                        <th className="w-1/12 px-4 py-2">Manager</th>
                         <th className="w-1/12 px-4 py-2">Technician</th>
+                        <th className="w-2/12 px-4 py-2">Remarks</th>
                         <th className="w-2/12 px-4 py-2">Status</th>
-                        <th className="w-2/12 px-4 py-2"></th>
+                        <th className="w-1/12 px-4 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -171,9 +171,9 @@ export default function RequestList({ user, view }) {
                             <tr key={req.request_id} className={`border-b ${(req.closing_reason && !req.manager_handle) ? "bg-yellow-200" : ""}`}>
                                 <td className="px-4 py-2 text-center">{(currentPage - 1) * 10 + index + 1}</td>
                                 <td className="px-4 py-2">{req.title}</td>
-                                <td className="px-4 py-2 text-center">{req.facility}</td>
-                                <td className="px-4 py-2 text-center">{req.assigned_by}</td>
+                                <td className="px-4 py-2 text-center">{facilities.find(facility => facility.facility_id === req.facility)?.name}</td>
                                 <td className="px-4 py-2 text-center">{req.assigned_to}</td>
+                                <td className="px-4 py-2 text-center ">{req.remarks ? (req.remarks.length > 15 ? req.remarks.substring(0, 15) + '...' : req.remarks) : ''}</td>
                                 <td className="px-4 py-2 text-center">
                                     <span className={`block py-1 text-sm rounded font-bold text-white ${statusStyle[req.status.toLowerCase().replace(/\s+/g, '')]}`}>
                                         {req.status}
@@ -184,7 +184,7 @@ export default function RequestList({ user, view }) {
                                         href={`/request-detail/${req.request_id}`}
                                         className="text-blue-300 hover:underline text-sm"
                                     >
-                                        View Details
+                                        Details&gt;
                                     </a>
                                 </td>
                             </tr>
