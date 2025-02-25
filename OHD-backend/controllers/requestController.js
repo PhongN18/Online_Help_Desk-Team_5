@@ -1,5 +1,6 @@
 const Request = require('../models/Request');
 const Facility = require('../models/Facility');
+const User = require('../models/User');
 const { validationResult } = require('express-validator');  // For request validation
 const sendEmail = require('../utils/emailService');
 
@@ -32,6 +33,7 @@ exports.createRequest = async (req, res) => {
         res.status(201).json(request);
 
         const facilityDetail = await Facility.findOne({ facility_id: facility });
+        const managerDetail = await User.findOne({ user_id: facilityDetail.head_manager });
 
         try {
             await sendEmail(
@@ -47,6 +49,20 @@ exports.createRequest = async (req, res) => {
                 <p>Thank you for using Online Help Desk.</p>
                 `
             );
+
+            await sendEmail(
+                managerDetail.email,
+                "New request for your facility",
+                `New request`,
+                `
+                <p>A new request has been created for your facility.</p>
+                <p><strong>Facility:</strong> ${facilityDetail.name}</p>
+                <p><strong>Title:</strong> ${title}</p>
+                <p><strong>Severity:</strong> ${severity}</p>
+                <p><strong>Description:</strong> ${description}</p>
+                <p>Thank you for using Online Help Desk.</p>
+                `
+            )
         } catch (emailError) {
             console.error("Email sending failed:", emailError.message);
         }
@@ -145,24 +161,234 @@ exports.getRequest = async (req, res) => {
     }
 };
 
-// Update request details
 exports.updateRequest = async (req, res) => {
-    const errors = validationResult(req);  // Collect validation errors
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });  // Return errors if validation fails
+        return res.status(400).json({ errors: errors.array() });
     }
 
     try {
-        req.body.updated_at = Date.now();  // Automatically set the updated_at field
+        const { request_id } = req.params;
+        const { update_action, status, remarks, assigned_by, assigned_to, closing_reason, manager_handle } = req.body;
 
-        const request = await Request.findOneAndUpdate({ request_id: req.params.request_id }, req.body, { new: true });
-        if (!request) return res.status(404).json({ message: 'Request not found' });
+        const updateBody = {
+            ...(assigned_by && { assigned_by }),
+            ...(assigned_to && { assigned_to }),
+            ...(closing_reason && { closing_reason }),
+            ...(manager_handle && { manager_handle }),
+            ...(status && { status }),
+            ...(remarks && { remarks }),
+            updated_at: Date.now(),
+        };
 
-        res.json(request);
+        const request = await Request.findOneAndUpdate(
+            { request_id },
+            updateBody,
+            { new: true }
+        );
+
+        if (!request) {
+            return res.status(404).json({ message: "Request not found" });
+        }
+
+        // Fetch users in parallel to optimize performance
+        const [requestUser, assignedTechnician, facilityManager] = await Promise.all([
+            User.findOne({ user_id: request.created_by }),
+            assigned_to ? User.findOne({ user_id: request.assigned_to }) : null,
+            request.assigned_by ? User.findOne({ user_id: request.assigned_by }) : null
+        ]);
+
+        let emailPromises = [];
+
+        // 📌 **Handle Different Actions & Email Notifications**
+        switch (update_action) {
+            case "assign_technician":
+                if (!assigned_to) return;
+
+                if (assignedTechnician) {
+                    emailPromises.push(
+                        sendEmail(
+                            assignedTechnician.email,
+                            "New request assigned to you",
+                            "Assigned request",
+                            `
+                            <p>You have been assigned a new request.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            <p><strong>Severity:</strong> ${request.severity}</p>
+                            <p><strong>Description:</strong> ${request.description}</p>
+                            `
+                        )
+                    );
+                }
+
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Request assigned to technician",
+                            "Request assigned",
+                            `
+                            <p>Your request has been assigned to a technician.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            <p><strong>Severity:</strong> ${request.severity}</p>
+                            <p><strong>Description:</strong> ${request.description}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "start_work":
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Work Started on Your Request",
+                            "Work started",
+                            `
+                            <p>The technician has started working on your request.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+
+                if (assignedTechnician) {
+                    emailPromises.push(
+                        sendEmail(
+                            assignedTechnician.email,
+                            "Start working on request",
+                            "Start working on request",
+                            `
+                            <p>You have started working on a new request.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "complete_work":
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Your Request is Completed",
+                            "Request completed",
+                            `
+                            <p>Your request has been marked as completed.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "submit_closing_reason":
+                if (facilityManager) {
+                    emailPromises.push(
+                        sendEmail(
+                            facilityManager.email,
+                            "Request Closing Approval Required",
+                            "Approval Needed",
+                            `
+                            <p>A requester has submitted a closing reason for request.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "manager_approve":
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Your Request Closing Approved",
+                            "Request approved",
+                            `
+                            <p>Your request closing has been approved.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "manager_decline":
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Your Request Closing Declined",
+                            "Request declined",
+                            `
+                            <p>Your request closing was declined.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "update_remarks":
+                if (assignedTechnician) {
+                    emailPromises.push(
+                        sendEmail(
+                            assignedTechnician.email,
+                            "Remarks Updated",
+                            "Remarks updated",
+                            `
+                            <p>Remarks have been updated for the request.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            case "manager_reject":
+                if (requestUser) {
+                    emailPromises.push(
+                        sendEmail(
+                            requestUser.email,
+                            "Your Request is Rejected",
+                            "Request rejected",
+                            `
+                            <p>Your request is rejected by Facility Manager.</p>
+                            <p><strong>Facility:</strong> ${request.facility}</p>
+                            <p><strong>Title:</strong> ${request.title}</p>
+                            `
+                        )
+                    );
+                }
+                break;
+
+            default:
+                console.log("No email action required.");
+        }
+
+        // Execute all email promises concurrently
+        await Promise.all(emailPromises);
+
+        res.json(request); // ✅ Now response is sent after emails
+
     } catch (err) {
+        console.error("Error updating request:", err.message);
         res.status(400).json({ error: err.message });
     }
 };
+
 
 // Delete a request
 exports.deleteRequest = async (req, res) => {

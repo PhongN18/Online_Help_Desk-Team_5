@@ -18,6 +18,7 @@ export default function RequestDetail() {
     const [closingReason, setClosingReason] = useState("");
     const [showTechnicianDropdown, setShowTechnicianDropdown] = useState(false);
     const [showRejectInput, setShowRejectInput] = useState(false);
+    const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -148,7 +149,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ status: "Work in progress", remarks: "Work is ongoing" }),
+                body: JSON.stringify({ status: "Work in progress", remarks: "Work is ongoing", update_action: 'start_work' }),
             });
 
             if (!response.ok) {
@@ -170,7 +171,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ remarks }),
+                body: JSON.stringify({ remarks, update_action: 'update_remarks' }),
             });
 
             if (!response.ok) {
@@ -184,6 +185,34 @@ export default function RequestDetail() {
         }
     }
 
+    const CompleteRequestModal = ({ isOpen, onClose, onConfirm }) => {
+        if (!isOpen) return null; // Don't render if modal is closed
+    
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                    <h2 className="text-lg font-semibold mb-4">Confirm Completion</h2>
+                    <p>Are you sure you want to mark this request as completed?</p>
+    
+                    <div className="flex justify-end space-x-3 mt-4">
+                        <button 
+                            onClick={onClose} 
+                            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={onConfirm} 
+                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        >
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const handleCompleteWork = async () => {
         try {
             const response = await fetch(`http://localhost:3000/requests/${request_id}`, {
@@ -192,7 +221,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ status: "Closed", remarks: "Work completed" }),
+                body: JSON.stringify({ status: "Closed", remarks: "Work completed", update_action: 'complete_work' }),
             });
 
             if (!response.ok) {
@@ -200,6 +229,7 @@ export default function RequestDetail() {
             }
 
             alert("Request completed successfully.");
+            setShowCompleteConfirmModal(false); // Close the modal after success
             window.location.reload();
         } catch (err) {
             alert(err.message);
@@ -214,7 +244,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ assigned_by: user.user_id, assigned_to: selectedTechnician, status: "Assigned" }),
+                body: JSON.stringify({ assigned_by: user.user_id, assigned_to: selectedTechnician, status: "Assigned", update_action: 'assign_technician' }),
             });
 
             if (!response.ok) {
@@ -236,7 +266,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ status: "Rejected", remarks: `Rejected by Manager ${user.name}, reject reason: ${rejectReason}` }),
+                body: JSON.stringify({ status: "Rejected", remarks: `Rejected by Manager ${user.name}, reject reason: ${rejectReason}`, update_action: 'manager_reject' }),
             });
 
             if (!response.ok) {
@@ -259,10 +289,12 @@ export default function RequestDetail() {
                 closingUpdate.closing_reason = `Closed by requester, reason: ${closingReason}`
                 closingUpdate.manager_handle = 'approved'
                 closingUpdate.remarks = `Approved closing request, reason: ${closingReason}`
+                closingUpdate.update_action = 'manager_approve'
             } else {
                 closingUpdate.closing_reason = `Closing request declined by manager`
                 closingUpdate.manager_handle = 'declined'
                 closingUpdate.remarks = `Declined closing request, reason: ${closingReason}`
+                closingUpdate.update_action = 'manager_decline'
             }
 
             const response = await fetch(`http://localhost:3000/requests/${request_id}`, {
@@ -297,7 +329,7 @@ export default function RequestDetail() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                 },
-                body: JSON.stringify({ closing_reason: closingReason }),
+                body: JSON.stringify({ closing_reason: closingReason, update_action: 'submit_closing_reason' }),
             });
 
             if (!response.ok) {
@@ -388,9 +420,19 @@ export default function RequestDetail() {
                                 <textarea className="border w-full p-2 rounded" placeholder="Update remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
                                 <button onClick={handleUpdateRemarks} className="px-4 py-2 rounded mt-2 bg-blue-500 text-white" >Update Remarks</button>
                                 <br />
-                                <button onClick={handleCompleteWork} className="bg-green-500 text-white px-4 py-2 rounded mt-2">
+                                <button 
+                                    onClick={() => setShowCompleteConfirmModal(true)} 
+                                    className="bg-green-500 text-white px-4 py-2 rounded mt-2"
+                                >
                                     Complete Request
                                 </button>
+
+                                {/* Modal for confirming completion */}
+                                <CompleteRequestModal
+                                    isOpen={showCompleteConfirmModal}
+                                    onClose={() => setShowCompleteConfirmModal(false)}
+                                    onConfirm={handleCompleteWork}
+                                />
                             </>
                         ) : null}
                     </div>
