@@ -3,11 +3,14 @@ import { useNavigate } from "react-router-dom";
 
 export default function RequestList({ user, view }) {
     const [requests, setRequests] = useState([]);
+    const [facilities, setFacilities] = useState([]); // Danh sách Facilities
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [selectedStatus, setSelectedStatus] = useState(""); // Lọc theo Status
+    const [selectedFacility, setSelectedFacility] = useState(""); // Lọc theo Facility
     const navigate = useNavigate();
 
     const statusStyle = {
@@ -16,8 +19,24 @@ export default function RequestList({ user, view }) {
         workinprogress: "bg-green-600",
         closed: "bg-gray-500",
         rejected: "bg-red-600"
-    }
+    };
 
+    // Fetch danh sách Facilities để hiển thị trong dropdown
+    const fetchFacilities = async () => {
+        try {
+            const res = await fetch("http://localhost:3000/facilities", {
+                headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+            });
+
+            if (!res.ok) throw new Error("Failed to fetch facilities.");
+            const data = await res.json();
+            setFacilities(data);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    // Fetch Requests
     const fetchRequests = async (page) => {
         setLoading(true);
         setError(null);
@@ -28,15 +47,20 @@ export default function RequestList({ user, view }) {
             if (view === "my_requests") {
                 url += `&created_by_me=true`;
             } else if (view === "facility_requests") {
-                url += `&facility=${user.user_id}`;
+                url += `&facility=${user.facility_id}`;
             } else if (view === "assigned_requests") {
                 url += `&assigned_to=${user.user_id}`;
             } else if (view === 'need_handle') {
                 url += `&need_handle=${user.user_id}`;
             }
 
-            console.log(url);
-            
+            if (selectedStatus) {
+                url += `&status=${selectedStatus}`;
+            }
+
+            if (selectedFacility) {
+                url += `&facility=${selectedFacility}`;
+            }
 
             const res = await fetch(url, {
                 headers: {
@@ -60,8 +84,9 @@ export default function RequestList({ user, view }) {
     };
 
     useEffect(() => {
+        fetchFacilities();
         fetchRequests(currentPage);
-    }, [currentPage, user.id, view]);
+    }, [currentPage, user.id, view, selectedStatus, selectedFacility]);
 
     const handlePageChange = (page) => {
         if (page < 1 || page > totalPages) return;
@@ -71,7 +96,7 @@ export default function RequestList({ user, view }) {
     if (loading) return <p>Loading requests...</p>;
     if (error) return <p>Error: {error}</p>;
 
-    let title
+    let title;
     switch (view) {
         case "my_requests":
             title = "Your Created Requests";
@@ -88,9 +113,42 @@ export default function RequestList({ user, view }) {
 
     return (
         <div className="bg-white shadow-md p-6 rounded-lg md:col-span-3">
-            <h2 className="text-xl font-semibold mb-4">{title}</h2>
-            
-            {/* Table for Requests */}
+            {/* Header với Dropdown chọn Status & Facility */}
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">{title}</h2>
+
+                <div className="flex space-x-4">
+                    {/* Dropdown chọn Facility */}
+                    <select
+                        value={selectedFacility}
+                        onChange={(e) => setSelectedFacility(e.target.value)}
+                        className="border border-gray-300 p-2 rounded-lg"
+                    >
+                        <option value="">All Facilities</option>
+                        {facilities.map((facility) => (
+                            <option key={facility.facility_id} value={facility.facility_id}>
+                                {facility.name}
+                            </option>
+                        ))}
+                    </select>
+
+                    {/* Dropdown chọn Status */}
+                    <select
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="border border-gray-300 p-2 rounded-lg"
+                    >
+                        <option value="">All Status</option>
+                        <option value="Unassigned">Unassigned</option>
+                        <option value="Assigned">Assigned</option>
+                        <option value="Work in progress">Work in progress</option>
+                        <option value="Closed">Closed</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Bảng hiển thị Requests */}
             <table className="w-full table-auto">
                 <thead>
                     <tr>
@@ -106,7 +164,7 @@ export default function RequestList({ user, view }) {
                 <tbody>
                     {requests.length === 0 ? (
                         <tr>
-                            <td colSpan="4" className="text-center py-4">No requests found.</td>
+                            <td colSpan="7" className="text-center py-4">No requests found.</td>
                         </tr>
                     ) : (
                         requests.map((req, index) => (
@@ -116,14 +174,18 @@ export default function RequestList({ user, view }) {
                                 <td className="px-4 py-2 text-center">{req.facility}</td>
                                 <td className="px-4 py-2 text-center">{req.assigned_by}</td>
                                 <td className="px-4 py-2 text-center">{req.assigned_to}</td>
-                                <td className="px-4 py-2 text-center"><span className={`block py-1 text-sm rounded font-bold text-white ${statusStyle[req.status.toLowerCase().replace(/\s+/g, '')]}`}>{req.status}</span></td>
                                 <td className="px-4 py-2 text-center">
-                                <a
-                                    href={`/request-detail/${req.request_id}`}
-                                    className="text-blue-300 hover:underline text-sm"
-                                >
-                                    View Details
-                                </a>
+                                    <span className={`block py-1 text-sm rounded font-bold text-white ${statusStyle[req.status.toLowerCase().replace(/\s+/g, '')]}`}>
+                                        {req.status}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <a
+                                        href={`/request-detail/${req.request_id}`}
+                                        className="text-blue-300 hover:underline text-sm"
+                                    >
+                                        View Details
+                                    </a>
                                 </td>
                             </tr>
                         ))
