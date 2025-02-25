@@ -28,6 +28,12 @@ export default function RoleBasedActions({ roles, setView }) {
                         >
                             View Facility Requests and Assign
                         </button>
+                        <button
+                            className="p-3 bg-red-500 text-white rounded"
+                            onClick={() => setView("need_handle")}
+                        >
+                            View Closing Requests from Users
+                        </button>
                     </>
                 )}
                 {roles.includes("Technician") && (

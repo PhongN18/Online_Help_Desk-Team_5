@@ -258,9 +258,11 @@ export default function RequestDetail() {
                 closingUpdate.status = 'Closed';
                 closingUpdate.closing_reason = `Closed by requester, reason: ${closingReason}`
                 closingUpdate.manager_handle = 'approved'
+                closingUpdate.remarks = `Approved closing request, reason: ${closingReason}`
             } else {
                 closingUpdate.closing_reason = `Closing request declined by manager`
                 closingUpdate.manager_handle = 'declined'
+                closingUpdate.remarks = `Declined closing request, reason: ${closingReason}`
             }
 
             const response = await fetch(`http://localhost:3000/requests/${request_id}`, {
@@ -339,18 +341,40 @@ export default function RequestDetail() {
                 <p><strong>Created At:</strong> {new Date(request.createdAt).toLocaleString()}</p>
                 <p><strong>Updated At:</strong> {new Date(request.updatedAt).toLocaleString()}</p>
 
-                {(user.user_id === request.created_by && (request.status !== 'Rejected' || request.status !== 'Closed') && request.closing_reason) ? (
-                    <div>
-                        <h3 className="text-xl font-semibold mt-6">Closing Reason: {request.closing_reason}</h3>
-                        <p>Waiting for Facility's Head Manager approval...</p>
-                    </div>
-                ) : (
-                    <div>
-                        <h3 className="text-xl font-semibold mt-6">Close the Request (please provide reason)</h3>
-                        <textarea className="border w-full p-2 rounded" placeholder="Closing reason" value={closingReason} onChange={(e) => setClosingReason(e.target.value)} />
-                        <button onClick={handleSubmitClosing} className="px-4 py-2 rounded mt-2 bg-blue-500 text-white" >Send closing request</button>
-                    </div>
-                )}
+                {/* Closing Request Handling */}
+                {user.user_id === request.created_by && request.status !== 'Rejected' && request.status !== 'Closed' ? (
+                    request.closing_reason ? (
+                        <div>
+                            <h3 className="text-xl font-semibold mt-6">Closing Reason:</h3>
+                            <p className="bg-gray-100 p-3 rounded">{request.closing_reason}</p>
+                            {request.manager_handle === 'approve' ? (
+                                <p className="text-green-600 font-semibold">✅ Closing request approved.</p>
+                            ) : request.manager_handle === 'decline' ? (
+                                <p className="text-red-600 font-semibold">❌ Closing request declined.</p>
+                            ) : (
+                                <p className="text-yellow-600 font-semibold">⌛ Waiting for Facility's Head Manager approval...</p>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <h3 className="text-xl font-semibold mt-6">Close the Request</h3>
+                            <p className="text-gray-600">Please provide a reason for closing:</p>
+                            <textarea 
+                                className="border w-full p-2 rounded" 
+                                placeholder="Closing reason" 
+                                value={closingReason} 
+                                onChange={(e) => setClosingReason(e.target.value)} 
+                            />
+                            <button 
+                                onClick={handleSubmitClosing} 
+                                className="px-4 py-2 rounded mt-2 bg-blue-500 text-white"
+                            >
+                                Send closing request
+                            </button>
+                        </div>
+                    )
+                ) : null}
+
 
                 {/* Technician Actions */}
                 {user?.roles.includes("Technician") && user.user_id === request.assigned_to && (
@@ -379,16 +403,22 @@ export default function RequestDetail() {
                             Assign Technician
                         </button>
                         {showTechnicianDropdown && (
-                            <>
-                                <select onChange={(e) => setSelectedTechnician(e.target.value)} className="border p-2 rounded w-full mt-2">
+                            <div>
+                                <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)} className="border p-2 rounded w-full mt-2">
                                     <option value="">Select Technician</option>
                                     {technicians.map((tech) => (
-                                        <option key={tech.user_id} value={tech.user_id}>{tech.name}</option>
+                                        <option key={tech.user_id} value={tech.user_id}>{tech.name} - ID: {tech.user_id}</option>
                                     ))}
                                 </select>
-                                <button onClick={handleAssignTechnician} className="bg-green-500 text-white px-4 py-2 rounded mt-2">Confirm Assignment</button>
-                            </>
-                        )}
+                                {/* Confirm Assignment Button (Disabled if no technician selected) */}
+                                <button
+                                    onClick={handleAssignTechnician}
+                                    className={`px-4 py-2 rounded mt-2 text-white ${selectedTechnician ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"}`}
+                                    disabled={!selectedTechnician} // Disable button if no selection
+                                >
+                                    Confirm Assignment
+                                </button>                            </div>
+                            )}
                         <button onClick={() => setShowRejectInput(!showRejectInput)} className="bg-red-500 text-white px-4 py-2 rounded mt-2">
                             Reject Request
                         </button>
@@ -401,7 +431,7 @@ export default function RequestDetail() {
                     </div>
                 )}
 
-                {isManagerOfThisFacility && request.closing_reason && (
+                {isManagerOfThisFacility && request.closing_reason && !request.manager_handle && (
                     <div>
                         <h3 className="text-xl font-semibold mt-6 text-red-500"><strong>Closing Reason:</strong> {request.closing_reason}</h3>
                         <button onClick={() => handleClosingReason('approve')} className="px-4 py-2 rounded mt-2 bg-blue-500 text-white" >Approve Closing Reason</button>

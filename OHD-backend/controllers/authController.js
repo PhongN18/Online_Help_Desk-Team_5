@@ -1,29 +1,28 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const sendEmail = require('../utils/emailService');
 
 exports.registerUser = async (req, res) => {
     try {
         const { name, email, password, roles } = req.body;
 
-        // Check if email is already taken
+        // Check if email is already registered
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ message: 'Email is already registered' });
         }
 
-        // Restrict users from self-registering as Admin
+        // Prevent users from registering as Admin
         if (roles && roles.includes('Admin')) {
             return res.status(403).json({ message: 'You cannot register as an Admin' });
         }
 
-        // // Hash password before saving
-        // const salt = await bcrypt.genSalt(10);
-        // const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Generate unique user_id (assuming auto-increment logic is handled in user creation)
+        // Generate a unique user_id (Auto-increment logic)
         const lastUser = await User.findOne().sort({ user_id: -1 });
-        const newUserId = lastUser ? `U${(parseInt(lastUser.user_id.substring(1)) + 1).toString().padStart(6, '0')}` : 'U000001';
+        const newUserId = lastUser
+            ? `U${(parseInt(lastUser.user_id.substring(1)) + 1).toString().padStart(6, '0')}` 
+            : 'U000001';
 
         // Create new user
         const newUser = new User({
@@ -31,23 +30,40 @@ exports.registerUser = async (req, res) => {
             name,
             email,
             password,
-            roles: roles || ['Requester'], // Default to 'Requester' if no role provided
+            roles: roles || ['Requester'], // Default role: 'Requester'
         });
 
         await newUser.save();
 
-        // Generate JWT token
+        // Generate JWT Token
         const token = jwt.sign(
             { user_id: newUser.user_id, roles: newUser.roles },
             process.env.JWT_SECRET,
             { expiresIn: '1h' } // Token expires in 1 hour
         );
 
+        // **Send response first to prevent delay or errors from email sending**
         res.status(201).json({
             message: 'User registered successfully',
             token,
             user: { user_id: newUser.user_id, name: newUser.name, email: newUser.email, roles: newUser.roles }
         });
+
+        // **Send email after response (Handle errors separately)**
+        try {
+            await sendEmail(
+                email,
+                "Registered to Online Help Desk",
+                `Registered`,
+                `
+                <p>You have successfully registered to Online Help Desk as a Requester</p>
+                <p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p>
+                <p>Thank you for registering to Online Help Desk.</p>
+                `
+            );
+        } catch (emailError) {
+            console.error("Email sending failed:", emailError.message);
+        }
 
     } catch (err) {
         res.status(500).json({ error: err.message });
