@@ -4,7 +4,7 @@
 
 ### Clone the Repository
 
-First, clone the repository to your local machine:
+First, clone the repository to your local device:
 
 ```
 git clone https://github.com/PhongN18/Online_Help_Desk-Team_5.git
@@ -46,9 +46,13 @@ npm install
 ```
 JWT_SECRET=jwt_secret_key
 REFRESH_SECRET=refresh_secret_key
+EMAIL_USER=email_for_notification
+EMAIL_PASS=email_app_password
 ```
 
 - **Replace `jwt_secret_key` and `refresh_secret_key` with your own unique keys** (make sure they are 32 bytes / 256 characters long for security).
+- **Replace `email_for_notification` and `email_app_password` with your own email details. This email will be used to send notifications to users.**
+  You can generate an *app password* for your email by following the instructions here _https://support.google.com/mail/answer/185833?hl=en_.
 
 ## Running the Application
 
