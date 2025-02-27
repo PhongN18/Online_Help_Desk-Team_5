@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const Request = require('../models/Request');
+const Facility = require('../models/Facility');
 const bcrypt = require('bcryptjs');
 const { getMaxUserId, updateMaxUserId } = require('../utils/initMaxIds');
 
@@ -48,7 +49,7 @@ exports.createUser = async (req, res) => {
 // Get all users with optional filters and pagination
 exports.getUsers = async (req, res) => {
     try {
-        const { roles, status, page, limit } = req.query;  // Get filters and pagination info from query params
+        const { roles, status, facility, page, limit } = req.query;  // Get filters and pagination info from query params
 
         // Build filter object based on query parameters
         let filter = {};
@@ -57,6 +58,19 @@ exports.getUsers = async (req, res) => {
             filter["roles.0"] = { $in: rolesArray }; // Match any role from the array
         }
         if (status) filter.status = status;  // Filter by status if provided
+
+        if (facility) {
+            const facilityDetails = await Facility.findOne({ facility_id: facility })
+            if (!facilityDetails) return res.status(404).json({ message: 'Facility not found' })
+            let facilityEmployees = [...facilityDetails.technicians]
+            const headManager = facilityDetails.head_manager;
+
+            if (headManager && !facilityEmployees.includes(headManager)) {
+                facilityEmployees.push(headManager);
+            }
+
+            filter.user_id = { $in: facilityEmployees }
+        }
 
         // Get total number of users (for pagination metadata)
         const totalItems = await User.countDocuments(filter);

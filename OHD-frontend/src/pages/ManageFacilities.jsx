@@ -14,9 +14,13 @@ export default function ManageFacilities() {
     const [facilityToDelete, setFacilityToDelete] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [newFacility, setNewFacility] = useState({ name: "", head_manager: "", location: "", status: "Operating", technicians: [] });
+    const [newFacility, setNewFacility] = useState({ name: '', location: '' });
     const [hoveredUser, setHoveredUser] = useState(null);
+    const [conflictMessage, setConflictMessage] = useState("");
+    const [pendingUpdate, setPendingUpdate] = useState(null);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false)
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+    const [facilityNameError, setFacilityNameError] = useState(""); // New state for error message
 
     const navigate = useNavigate();
 
@@ -95,18 +99,13 @@ export default function ManageFacilities() {
     const handleManagerChange = (selected) => {
         setEditFacility(prev => ({
             ...prev,
-            manager: selected ? selected.value : "", // Set manager as single value
+            head_manager: selected ? selected.value : "", // Set manager as single value
         }));
     };
 
-    /** Update Selected Technicians */
-    const handleTechnicianChange = (selectedTechnicians, isEdit = false) => {
-        const techIds = selectedTechnicians.map(tech => tech.value);
-        if (isEdit) {
-            setEditFacility({ ...editFacility, technicians: techIds });
-        } else {
-            setNewFacility({ ...newFacility, technicians: techIds });
-        }
+    const handleTechnicianChange = (selectedTechnicians) => {
+        const techIds = selectedTechnicians.map((tech) => tech.value);
+        setEditFacility({ ...editFacility, technicians: techIds });
     };
 
     const handleEdit = (facility) => {
@@ -114,9 +113,66 @@ export default function ManageFacilities() {
         setShowEditModal(true)
     };
 
+    const checkForConflicts = () => {
+        let conflict = [];
+        let previousFacility = null;
+
+        // Check if selected manager is already managing another facility
+        if (editFacility.head_manager) {
+            const existingFacility = facilities.find(f => f.head_manager === editFacility.head_manager && f.facility_id !== editFacility.facility_id);
+            if (existingFacility) {
+                conflict.push(
+                    <div key="manager-conflict">
+                        <strong>The selected manager</strong> is currently the head of <strong>{existingFacility.name}</strong>
+                    </div>
+                );
+                previousFacility = existingFacility;
+            }
+        }
+
+        // Check if any selected technicians are already assigned elsewhere
+        const conflictingTechnicians = technicians.filter(tech =>
+            editFacility.technicians.includes(tech.user_id) &&
+            facilities.some(f => f.technicians.includes(tech.user_id) && f.facility_id !== editFacility.facility_id)
+        );
+
+        if (conflictingTechnicians.length > 0) {
+            conflict.push(
+                <div key="technician-conflict">
+                    <strong>The following technicians</strong> are already assigned to another facility:
+                    <ul className="list-disc pl-8">
+                        {conflictingTechnicians.map(t => (
+                            <li className="" key={t.user_id}>{t.name} - ID: {t.user_id}</li>
+                        ))}
+                    </ul>
+                </div>
+            )
+        }
+
+        if (conflict) {
+            conflict.push(<p key="msg" className="my-4">Changing this will remove them from their previous facility.</p>)
+            setConflictMessage(conflict);
+            setShowConfirmationModal(true);
+            setPendingUpdate({ previousFacility });
+        } else {
+            handleUpdateFacility();
+        }
+    };
+
     const handleUpdateFacility = async () => {
         try {
             const authToken = localStorage.getItem("authToken");
+
+            if (pendingUpdate?.previousFacility) {
+                // If the previous facility had this manager, remove the manager
+                await fetch(`http://localhost:3000/facilities/${pendingUpdate.previousFacility.facility_id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify({ head_manager: null }),
+                });
+            }
+
+            // Update Facility
             const res = await fetch(`http://localhost:3000/facilities/${editFacility.facility_id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
@@ -126,6 +182,8 @@ export default function ManageFacilities() {
             if (!res.ok) throw new Error("Failed to update facility.");
             alert("Facility updated successfully.");
             setEditFacility(null);
+            setShowEditModal(false);
+            setShowConfirmationModal(false);
         } catch (err) {
             alert(err.message);
         }
@@ -150,8 +208,26 @@ export default function ManageFacilities() {
 
     /** Handle Create Facility */
     const handleCreateFacility = async () => {
+        // Check if facility name already exists
+        const facilityExists = facilities.some(facility => facility.name.toLowerCase() === newFacility.name.toLowerCase());
+        if (facilityExists) {
+            setFacilityNameError("Facility name already exists. Please choose a different name.");
+            return; // Prevent further execution if facility name exists
+        } else {
+            setFacilityNameError(""); // Clear error message if name is unique
+        }
+
         try {
             const authToken = localStorage.getItem("authToken");
+
+            if (!newFacility.name) {
+                setFacilityNameError("Facility name is required");
+                return; // Prevent submission if name is missing
+            } else if (!newFacility.location) {
+                setFacilityNameError("Location is required");
+                return; // Prevent submission if name is missing
+            }
+
             const res = await fetch(`http://localhost:3000/facilities`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
@@ -224,14 +300,14 @@ export default function ManageFacilities() {
                                         className="cursor-pointer hover:text-white hover:bg-black transition-all rounded-2xl p-2"
                                         onMouseEnter={(e) => {
                                             setHoveredUser({
-                                                name: managers.find(m => m.user_id === facility.head_manager)?.name || "Unknown",
-                                                id: facility.head_manager
+                                                name: managers.find(m => m.user_id === facility.head_manager)?.name || "Unnassigned",
+                                                id: facility.head_manager ? facility.head_manager : null
                                             });
                                             setTooltipPosition({ x: e.clientX, y: e.clientY });
                                         }}
                                         onMouseLeave={() => setHoveredUser(null)}
                                     >
-                                        {managers?.find(m => m.user_id === facility.head_manager)?.name || "Unknown"}
+                                        {managers?.find(m => m.user_id === facility.head_manager)?.name || "Unassigned Manager"}
                                     </span>
                                 </td>
                                 <td className="p-2 border">
@@ -267,12 +343,12 @@ export default function ManageFacilities() {
                     <div
                         className="absolute bg-gray-800 text-white text-sm px-2 py-1 rounded shadow-md"
                         style={{
-                            top: tooltipPosition.y + 30 + "px",
+                            top: tooltipPosition.y - 50 + "px",
                             left: tooltipPosition.x - 50 + "px",
                             whiteSpace: "nowrap"
                         }}
                     >
-                        {hoveredUser.name} (ID: {hoveredUser.id})
+                        {hoveredUser.name} {hoveredUser.id ? '(ID: ' + hoveredUser.id + ')' : ''}
                     </div>
                 )}
 
@@ -280,7 +356,9 @@ export default function ManageFacilities() {
                     <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
                         <div className="bg-white p-6 rounded shadow-md w-96">
                             <h3 className="text-xl font-semibold mb-4">Add New Facility</h3>
-                            <input type="text" className="border p-2 w-full rounded mb-2" placeholder="Facility Name" onChange={(e) => setNewFacility({ ...newFacility, name: e.target.value })} />
+                            <p className="text-red-500 text-sm">{facilityNameError}</p>
+                            <input type="text" className="border p-2 w-full rounded mb-2" placeholder="Facility Name" onChange={(e) => {setNewFacility({ ...newFacility, name: e.target.value })}} />
+                            <input type="text" className="border p-2 w-full rounded mb-2" placeholder="Facility Location" onChange={(e) => {setNewFacility({ ...newFacility, location: e.target.value })}} />
                             <button className="bg-green-500 text-white px-4 py-2 rounded" onClick={handleCreateFacility}>
                                 Create
                             </button>
@@ -301,7 +379,7 @@ export default function ManageFacilities() {
                             <Select
                                 options={managerOptions}
                                 placeholder="Select Manager"
-                                value={managerOptions.find(opt => editFacility.manager === opt.value) || null} // Find single selected option
+                                value={managerOptions.find(opt => editFacility.head_manager === opt.value) || null} // Find single selected option
                                 className="mb-2"
                                 onChange={(selected) => handleManagerChange(selected)} // Handle selection
                             />
@@ -314,12 +392,22 @@ export default function ManageFacilities() {
                                 className="mb-2"
                                 onChange={(selected) => handleTechnicianChange(selected, true)}
                             />
-                            <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={handleUpdateFacility}>
+                            <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={checkForConflicts}>
                                 Save
                             </button>
                             <button className="bg-gray-400 px-4 py-2 rounded ml-3" onClick={() => setShowEditModal(false)}>
                                 Cancel
                             </button>
+                        </div>
+                    </div>
+                )}
+
+                {showConfirmationModal && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+                        <div className="bg-white p-6 rounded shadow-md">
+                            <div>{conflictMessage}</div>
+                            <button className="text-white bg-blue-500 mr-3" onClick={handleUpdateFacility}>Yes, Continue</button>
+                            <button className="bg-gray-400" onClick={() => setShowConfirmationModal(false)}>Cancel</button>
                         </div>
                     </div>
                 )}

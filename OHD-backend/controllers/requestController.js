@@ -454,7 +454,7 @@ exports.getRequestsOverTime = async (req, res) => {
         ]);
         
 
-        console.log(requestTrends);
+        // console.log(requestTrends);
 
         const months = [];
         for (let i = 5; i >= 0; i--) {
@@ -530,3 +530,53 @@ exports.getResolutionTime = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// exports.getRequestsBySeverityPerFacility = async (req, res) => {
+//     try {
+//         // Aggregating the requests by facility and severity
+//         const requestData = await Request.aggregate([
+//             // Step 1: Match the data, you can also add filtering if needed
+//             {
+//                 $group: {
+//                     _id: {
+//                         facility: "$facility",
+//                         severity: "$severity"
+//                     },
+//                     count: { $sum: 1 }
+//                 }
+//             },
+//             // Step 2: Join with the Facility collection to get the facility name
+//             {
+//                 $lookup: {
+//                     from: "facilities", // The name of your facilities collection in MongoDB
+//                     localField: "_id.facility",
+//                     foreignField: "facility_id",
+//                     as: "facilityData"
+//                 }
+//             },
+//             {
+//                 $unwind: "$facilityData"
+//             },
+//             // Step 3: Format the data so it's more readable
+//             {
+//                 $project: {
+//                     facility_name: "$facilityData.name",
+//                     severity: "$_id.severity",
+//                     count: 1
+//                 }
+//             }
+//         ]);
+
+//         // If no data found
+//         if (!requestData.length) {
+//             return res.status(404).json({ message: "No data found" });
+//         }
+
+//         // Return the aggregated data
+//         res.json(requestData);
+//     } catch (err) {
+//         // Handle errors
+//         console.error(err);
+//         res.status(500).json({ error: err.message });
+//     }
+// };

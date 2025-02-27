@@ -4,6 +4,7 @@ import AdminNavbar from "../components/AdminNavbar";
 
 export default function ManageUsers() {
     const [users, setUsers] = useState([]);
+    const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(""); // Changed from array to string
     const [editUser, setEditUser] = useState(null);
@@ -16,6 +17,7 @@ export default function ManageUsers() {
     // Filters
     const [selectedRoles, setSelectedRoles] = useState(['Admin', 'Manager', 'Technician', 'Requester']);
     const [selectedStatus, setSelectedStatus] = useState("");
+    const [selectedFacility, setSelectedFacility] = useState("");
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
@@ -56,6 +58,10 @@ export default function ManageUsers() {
                     url += `&status=${selectedStatus}`;
                 }
 
+                if (selectedFacility) {
+                    url += `&facility=${selectedFacility}`;
+                }
+
                 const res = await fetch(url, {
                     headers: {
                         "Content-Type": "application/json",
@@ -81,8 +87,26 @@ export default function ManageUsers() {
             }
         };
 
+        /** Fetch all facilities */
+        const fetchFacilities = async (authToken) => {
+            try {
+                const res = await fetch("http://localhost:3000/facilities", {
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch facilities.");
+                const data = await res.json();
+                setFacilities(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchUsers(currentPage);
-    }, [currentPage, selectedRoles, selectedStatus, navigate]);
+        fetchFacilities(authToken)
+    }, [currentPage, selectedRoles, selectedStatus, selectedFacility, navigate]);
 
     const handlePageChange = (newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -102,6 +126,11 @@ export default function ManageUsers() {
         setCurrentPage(1);
     };
 
+    const handleFacilityChange = (e) => {
+        setSelectedFacility(e.target.value);
+        setCurrentPage(1)
+    }
+
     const handleEdit = (user) => {
         setEditUser({...user});
         setShowEditModal(true);
@@ -118,6 +147,13 @@ export default function ManageUsers() {
             if (!authToken) {
                 throw new Error("Authentication token not found");
             }
+
+            let formatRoles = ['Requester']
+            if (editUser.roles.includes('Manager')) {
+                formatRoles = ['Manager', 'Technician', 'Requester']
+            } else if (editUser.roles.includes('Technician')) {
+                formatRoles = ['Technician', 'Requester']
+            }
             
             const res = await fetch(`http://localhost:3000/users/${editUser.user_id}`, {
                 method: 'PUT',
@@ -128,7 +164,7 @@ export default function ManageUsers() {
                 body: JSON.stringify({
                     name: editUser.name,
                     email: editUser.email,
-                    roles: editUser.roles,
+                    roles: formatRoles,
                     status: editUser.status
                 }),
             });
@@ -163,16 +199,30 @@ export default function ManageUsers() {
 
     const handleEditRoleChange = (role) => {
         setEditUser(prev => {
-            const updatedRoles = prev.roles.includes(role)
-                ? prev.roles.filter(r => r !== role)
-                : [...prev.roles, role];
-            
+            let updatedRoles = [...prev.roles];
+    
+            if (role === 'Admin') {
+                // If 'Admin' is selected, deselect all other roles
+                updatedRoles = ['Admin'];
+            } else {
+                // If another role is selected, ensure 'Admin' is deselected
+                if (updatedRoles.includes('Admin')) {
+                    updatedRoles = updatedRoles.filter(r => r !== 'Admin');
+                }
+    
+                // Toggle the selected role
+                updatedRoles = updatedRoles.includes(role)
+                    ? updatedRoles.filter(r => r !== role)  // Remove the role
+                    : [...updatedRoles, role];  // Add the role
+            }
+    
             return {
                 ...prev,
                 roles: updatedRoles
             };
         });
     };
+    
 
     const handleDeleteUser = async () => {
         if (!userToDelete) return;
@@ -185,7 +235,7 @@ export default function ManageUsers() {
             
             const res = await fetch(`http://localhost:3000/users/${userToDelete}`, {
                 method: 'DELETE',
-                headers: { 
+                headers: {
                     "Authorization": `Bearer ${authToken}`
                 }
             });
@@ -201,71 +251,6 @@ export default function ManageUsers() {
         } catch (err) {
             setError(err.message || "An error occurred while deleting the user");
         }
-    };
-
-    // Add create user functionality
-    const handleCreateUser = async (e) => {
-        e.preventDefault();
-        
-        if (!newUser.name || !newUser.email || !newUser.password) {
-            setError("Name, email and password are required");
-            return;
-        }
-        
-        setLoading(true);
-        try {
-            const authToken = localStorage.getItem("authToken");
-            if (!authToken) {
-                throw new Error("Authentication token not found");
-            }
-            
-            const res = await fetch(`http://localhost:3000/users`, {
-                method: 'POST',
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${authToken}`
-                },
-                body: JSON.stringify(newUser),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.message || "Failed to create user");
-            }
-            
-            const data = await res.json();
-            
-            // Add the new user to the list and reset the form
-            setUsers(prevUsers => [...prevUsers, data.data]);
-            setNewUser({ name: "", email: "", password: "", roles: ["Requester"], status: "Active" });
-            setShowCreateModal(false);
-            setError(""); // Clear any previous errors
-        } catch (err) {
-            setError(err.message || "An error occurred while creating the user");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreateChange = (e) => {
-        const { name, value } = e.target;
-        setNewUser(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleCreateRoleChange = (role) => {
-        setNewUser(prev => {
-            const updatedRoles = prev.roles.includes(role)
-                ? prev.roles.filter(r => r !== role)
-                : [...prev.roles, role];
-            
-            return {
-                ...prev,
-                roles: updatedRoles
-            };
-        });
     };
 
     const handleLogout = () => {
@@ -287,7 +272,7 @@ export default function ManageUsers() {
                 )}
                 
                 <div className="flex justify-between items-center mb-4">
-                    <div className="flex-1">
+                    <div className="">
                         {/* Role Filter (Multi-select) */}
                         <div>
                             <label className="font-semibold">Filter by Role:</label>
@@ -306,6 +291,21 @@ export default function ManageUsers() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Facility Filter (Dropdown) */}
+                    <div>
+                        <label className="font-semibold">Filter by Facility:</label>
+                        <select
+                            value={selectedFacility}
+                            onChange={handleFacilityChange}
+                            className="border p-2 rounded ml-2"
+                        >
+                            <option value="">All</option>
+                            {facilities?.map(facility => (
+                                <option key={facility.facility_id} value={facility.facility_id}>{facility.name}</option>
+                            ))}
+                        </select>
+                    </div>
                     
                     {/* Status Filter (Dropdown) */}
                     <div>
@@ -320,58 +320,52 @@ export default function ManageUsers() {
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
-                    
-                    {/* Create User Button */}
-                    <button 
-                        className="bg-green-500 text-white px-4 py-2 rounded"
-                        onClick={() => setShowCreateModal(true)}
-                    >
-                        Create User
-                    </button>
+
+                    {/* Pagination Controls */}
+                    <div className="flex justify-end items-center">
+                        <span className="text-center mr-4 leading-10">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            className={`px-4 py-2 rounded ${
+                                currentPage === 1 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
+                            }`}
+                            onClick={() => handlePageChange(1)}
+                            disabled={currentPage === 1}
+                        >
+                            &lt; First
+                        </button>
+                        <button
+                            className={`px-4 py-2 rounded ml-2 ${
+                                currentPage === 1 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
+                            }`}
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </button>
+                        <button
+                            className={`px-4 py-2 rounded ml-2 ${
+                                currentPage === totalPages ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
+                            }`}
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </button>
+                        <button
+                            className={`px-4 py-2 rounded ml-2 ${
+                                currentPage === totalPages ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
+                            }`}
+                            onClick={() => handlePageChange(totalPages)}
+                            disabled={currentPage === totalPages}
+                        >
+                            Last &gt;
+                        </button>
+                    </div>
                 </div>
 
-                {/* Pagination Controls */}
-                <div className="flex justify-end items-center mb-4">
-                    <span className="text-center mr-4 leading-10">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                        className={`px-4 py-2 rounded ${
-                            currentPage === 1 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
-                        }`}
-                        onClick={() => handlePageChange(1)}
-                        disabled={currentPage === 1}
-                    >
-                        &lt; First
-                    </button>
-                    <button
-                        className={`px-4 py-2 rounded ml-2 ${
-                            currentPage === 1 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
-                        }`}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                    >
-                        Previous
-                    </button>
-                    <button
-                        className={`px-4 py-2 rounded ml-2 ${
-                            currentPage === totalPages ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
-                        }`}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                    >
-                        Next
-                    </button>
-                    <button
-                        className={`px-4 py-2 rounded ml-2 ${
-                            currentPage === totalPages ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 text-white"
-                        }`}
-                        onClick={() => handlePageChange(totalPages)}
-                        disabled={currentPage === totalPages}
-                    >
-                        Last &gt;
-                    </button>
-                </div>
+                
 
                 {/* Loading Indicator */}
                 {loading && (
@@ -388,6 +382,7 @@ export default function ManageUsers() {
                             <th className="p-2 border">Name</th>
                             <th className="p-2 border">Email</th>
                             <th className="p-2 border">Role</th>
+                            <th className="p-2 border">Facility</th>
                             <th className="p-2 border">Status</th>
                             <th className="p-2 border">Actions</th>
                         </tr>
@@ -403,7 +398,14 @@ export default function ManageUsers() {
                                     <td className="p-2 border text-center">{user.user_id}</td>
                                     <td className="p-2 border">{user.name}</td>
                                     <td className="p-2 border">{user.email}</td>
-                                    <td className="p-2 border">{user.roles.join(", ")}</td>
+                                    <td className="p-2 border text-center">{user.roles[0]}</td>
+                                    {user.roles[0] === 'Manager' ? (
+                                        <td className="p-2 border text-center">{facilities?.find(f => f.head_manager === user.user_id).name}</td>
+                                    ) : (user.roles[0] === 'Technician' ? (
+                                        <td className="p-2 border text-center">{facilities?.find(f => f.technicians.includes(user.user_id)).name}</td>
+                                    ) : (
+                                        <td className="p-2 border text-center"></td>
+                                    ))}
                                     <td className="p-2 border">{user.status}</td>
                                     <td className="p-2 border text-center">
                                         <button
@@ -525,94 +527,6 @@ export default function ManageUsers() {
                                     Delete
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Create User Modal */}
-                {showCreateModal && (
-                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                            <h3 className="text-xl font-semibold mb-4">Create New User</h3>
-                            <form onSubmit={handleCreateUser}>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Name</label>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={newUser.name}
-                                        onChange={handleCreateChange}
-                                        className="w-full p-2 border rounded"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Email</label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={newUser.email}
-                                        onChange={handleCreateChange}
-                                        className="w-full p-2 border rounded"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Password</label>
-                                    <input
-                                        type="password"
-                                        name="password"
-                                        value={newUser.password}
-                                        onChange={handleCreateChange}
-                                        className="w-full p-2 border rounded"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Roles</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {["Admin", "Manager", "Technician", "Requester"].map((role) => (
-                                            <button
-                                                type="button"
-                                                key={role}
-                                                onClick={() => handleCreateRoleChange(role)}
-                                                className={`px-3 py-1 border rounded ${
-                                                    newUser.roles.includes(role) ? "bg-blue-500 text-white" : "bg-gray-200"
-                                                }`}
-                                            >
-                                                {role}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Status</label>
-                                    <select
-                                        name="status"
-                                        value={newUser.status}
-                                        onChange={handleCreateChange}
-                                        className="w-full p-2 border rounded"
-                                    >
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                    </select>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        className="bg-gray-300 px-4 py-2 rounded"
-                                        onClick={() => setShowCreateModal(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-green-500 text-white px-4 py-2 rounded"
-                                    >
-                                        Create User
-                                    </button>
-                                </div>
-                            </form>
                         </div>
                     </div>
                 )}

@@ -110,7 +110,7 @@ export default function AdminDashboard() {
                         <h3 className="text-lg font-semibold">Pending Closing Requests</h3>
                         <p className="text-3xl font-bold">{overviewStats.pendingClosingRequests}</p>
                     </div>
-                    <div className="p-6 bg-green-200 rounded-lg text-center shadow-md">
+                    <div className="p-6 bg-gray-300 rounded-lg text-center shadow-md">
                         <h3 className="text-lg font-semibold">Closed Requests</h3>
                         <p className="text-3xl font-bold">{overviewStats.statusCounts?.Closed || 0}</p>
                     </div>

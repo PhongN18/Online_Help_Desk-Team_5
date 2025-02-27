@@ -210,9 +210,9 @@ const closingReasons = [
 ];
 
 
-const requestStartTime = new Date('2024-09-01T00:00:00Z'); // 1st September 2024
+const requestStartTime = new Date('2024-08-01T00:00:00Z'); // 1st August 2024
 const createEndTime = new Date('2025-02-15T00:00:00Z'); // 15nd February 2025
-const requestEndTime = new Date('2025-02-26T23:59:59Z'); // 26th February 2025
+const requestEndTime = new Date('2025-02-27T23:59:59Z'); // 27th February 2025
 function getRandomTimestamp(start, end) {
 
     // Generate a random time in milliseconds between the start and end date
@@ -235,7 +235,8 @@ async function seedRequests() {
             const facilityId = Math.ceil(Math.random() * noOfFacilities)
 
             const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
-            const severity = severityOptions[Math.floor(Math.random() * severityOptions.length)];
+            const severityRandom = Math.floor(Math.random() * 10);
+            const severity = severityRandom > 4 ? 'Low' : (severityRandom < 2 ? 'High' : 'Medium')
             const facility = `F${facilityId.toString().padStart(3, '0')}`;
             const title = requestTitles[Math.floor(Math.random() * requestTitles.length)];
             const description = requestDescriptions[Math.floor(Math.random() * requestDescriptions.length)];

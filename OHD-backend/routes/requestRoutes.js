@@ -42,5 +42,6 @@ router.get("/admin/requests-over-time", protect, authorizeRoles('Admin'), reques
 router.get("/admin/requests-by-facility", protect, authorizeRoles('Admin'), requestController.getRequestsByFacility);  // Requests by facility
 router.get("/admin/severity-distribution", protect, authorizeRoles('Admin'), requestController.getSeverityDistribution);  // Severity distribution
 router.get("/admin/average-resolution-time", protect, authorizeRoles('Admin'), requestController.getResolutionTime);  // Average resolution time
+// router.get('/admin/requests-by-severity-per-facility', protect, authorizeRoles('Admin'), requestController.getRequestsBySeverityPerFacility);
 
 module.exports = router;

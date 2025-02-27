@@ -6,11 +6,12 @@ const { getMaxFacilityId, updateMaxFacilityId } = require('../utils/initMaxIds')
 exports.createFacility = async (req, res) => {
     const errors = validationResult(req);  // Collect validation errors
     if (!errors.isEmpty()) {
+        console.log('validation', errors)
         return res.status(400).json({ errors: errors.array() });  // Return errors if validation fails
     }
 
     try {
-        const { name, head_manager, status, location } = req.body;
+        const { name, location } = req.body;
 
         // Check if the facility already exists
         const existingFacility = await Facility.findOne({ name });
@@ -26,8 +27,7 @@ exports.createFacility = async (req, res) => {
         const facility = new Facility({
             facility_id,
             name,
-            head_manager,
-            status: status || 'Operating',  // Default status is 'Operating'
+            status: 'Operating',  // Default status is 'Operating'
             location
         });
 
@@ -35,6 +35,7 @@ exports.createFacility = async (req, res) => {
         await updateMaxFacilityId();  // Update the max facility_id
         res.status(201).json(facility);
     } catch (err) {
+        console.log('catch', err)
         res.status(400).json({ error: err.message });
     }
 };

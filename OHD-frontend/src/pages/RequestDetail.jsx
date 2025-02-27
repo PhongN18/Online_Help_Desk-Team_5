@@ -370,8 +370,8 @@ export default function RequestDetail() {
                 <p><strong>Remarks:</strong> {request.remarks || "No remarks"}</p>
                 {user.user_id === request.created_by && <p><strong>Closing Reason:</strong> {request.closing_reason || "No closing reason"}</p>}
                 <p><strong>Status:</strong> {request.status}</p>
-                <p><strong>Created At:</strong> {new Date(request.createdAt).toLocaleString()}</p>
-                <p><strong>Updated At:</strong> {new Date(request.updatedAt).toLocaleString()}</p>
+                <p><strong>Created At:</strong> {Date(request.createdAt).toLocaleString()}</p>
+                <p><strong>Updated At:</strong> {Date(request.updatedAt).toLocaleString()}</p>
 
                 {/* Closing Request Handling */}
                 {user.user_id === request.created_by && request.status !== 'Rejected' && request.status !== 'Closed' ? (

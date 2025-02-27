@@ -10,7 +10,6 @@ router.post(
     protect, authorizeRoles('Admin'),
     [
         check('name').notEmpty().withMessage('Facility name is required'),
-        check('head_manager').notEmpty().withMessage('Head manager is required')
     ],
     facilityController.createFacility
 );
