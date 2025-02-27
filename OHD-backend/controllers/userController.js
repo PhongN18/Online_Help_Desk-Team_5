@@ -48,41 +48,52 @@ exports.createUser = async (req, res) => {
 // Get all users with optional filters and pagination
 exports.getUsers = async (req, res) => {
     try {
-        const { role, status, page = 1, limit = 10 } = req.query;  // Get filters and pagination info from query params
-
-        // Parse `limit` and `page` to integers
-        const parsedLimit = parseInt(limit, 10);
-        const parsedPage = parseInt(page, 10);
-
-        // Ensure page and limit are valid numbers
-        if (parsedPage < 1 || parsedLimit < 1) {
-            return res.status(400).json({ message: 'Page and limit must be greater than 0' });
-        }
+        const { roles, status, page, limit } = req.query;  // Get filters and pagination info from query params
 
         // Build filter object based on query parameters
         let filter = {};
-        if (role) filter.roles = { $elemMatch: { $eq: role } };  // Filter by role if provided
+        if (roles) {
+            const rolesArray = roles.split(","); // Convert string to an array
+            filter["roles.0"] = { $in: rolesArray }; // Match any role from the array
+        }
         if (status) filter.status = status;  // Filter by status if provided
 
         // Get total number of users (for pagination metadata)
         const totalItems = await User.countDocuments(filter);
 
-        // Get the paginated users
-        const users = await User.find(filter)
-            .skip((parsedPage - 1) * parsedLimit)  // Skip items based on page number
-            .limit(parsedLimit)  // Limit the number of items per page
-            .exec();
+        if (page && limit) {
+            // Parse `limit` and `page` to integers
+            const parsedLimit = parseInt(limit, 10);
+            const parsedPage = parseInt(page, 10);
 
-        // Calculate total pages based on the total number of items and limit
-        const totalPages = Math.ceil(totalItems / parsedLimit);
+            // Ensure page and limit are valid numbers
+            if (parsedPage < 1 || parsedLimit < 1) {
+                return res.status(400).json({ message: 'Page and limit must be greater than 0' });
+            }
 
-        // Send the paginated response
-        res.json({
-            totalItems,
-            totalPages,
-            currentPage: parsedPage,
-            data: users  // Array of users
-        });
+            // Get the paginated users
+            const users = await User.find(filter)
+                .skip((parsedPage - 1) * parsedLimit)  // Skip items based on page number
+                .limit(parsedLimit)  // Limit the number of items per page
+                .exec();
+
+            // Calculate total pages based on the total number of items and limit
+            const totalPages = Math.ceil(totalItems / parsedLimit);
+
+            // Send the paginated response
+            res.json({
+                totalItems,
+                totalPages,
+                currentPage: parsedPage,
+                data: users  // Array of users
+            });
+        } else {
+            const users = await User.find(filter).exec()
+
+            res.json({ data: users })
+        }
+
+        
 
     } catch (err) {
         res.status(500).json({ error: err.message });

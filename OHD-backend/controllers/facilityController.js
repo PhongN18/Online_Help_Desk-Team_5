@@ -89,7 +89,8 @@ exports.deleteFacility = async (req, res) => {
     try {
         const facility = await Facility.findOneAndDelete({ facility_id: req.params.facility_id });
         if (!facility) return res.status(404).json({ message: 'Facility not found' });
-
+        
+        const maxCurrentFacilityId = getMaxFacilityId()
         if (facility.facility_id === `F${maxCurrentFacilityId.toString().padStart(3, '0')}`) {
             await updateMaxFacilityId();  // Update global maxCurrentFacilityId after deletion
         }

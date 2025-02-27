@@ -348,12 +348,12 @@ export default function RequestDetail() {
     if (!request) return <p>No request found.</p>;
 
     const isManagerOfThisFacility = user?.roles.includes("Manager") && user?.user_id === facility?.head_manager;
-    console.log('User', user);
-    console.log('Facility', facility);
-    console.log('Manager', manager);
-    console.log('Technicians', technicians)
-    console.log('assigned', assignedTechnician)
-    console.log('Request', request)
+    // console.log('User', user);
+    // console.log('Facility', facility);
+    // console.log('Manager', manager);
+    // console.log('Technicians', technicians)
+    // console.log('assigned', assignedTechnician)
+    // console.log('Request', request)
     return (
         <>
             <DashboardNavbar user={user} />
@@ -362,8 +362,8 @@ export default function RequestDetail() {
                 <p><strong>Request ID:</strong> {request.request_id}</p>
                 <p><strong>Facility:</strong> {facility?.name} - {facility?.facility_id}</p>
                 <p><strong>Created By:</strong> {request.created_by}</p>
-                <p><strong>Assigned By:</strong> ID: {manager?.user_id} - {manager?.name}</p>
-                <p><strong>Assigned To:</strong> ID: {request?.assigned_to} - {assignedTechnician?.name || "Unassigned"}</p>
+                <p><strong>Manager:</strong> ID: {manager?.user_id} - {manager?.name}</p>
+                <p><strong>Technician:</strong> {request.assigned_to ? `ID: ${request.assigned_to} - ` : ''}{assignedTechnician?.name || "Unassigned"}</p>
                 <p><strong>Title:</strong> {request.title}</p>
                 <p><strong>Severity:</strong> {request.severity}</p>
                 <p><strong>Description:</strong> {request.description}</p>

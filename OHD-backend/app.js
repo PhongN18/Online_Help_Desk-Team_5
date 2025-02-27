@@ -10,7 +10,6 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const requestRoutes = require('./routes/requestRoutes');
 const facilityRoutes = require('./routes/facilityRoutes');
-const messageRoutes = require('./routes/messageRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -34,7 +33,6 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/requests', requestRoutes);
 app.use('/facilities', facilityRoutes);
-app.use('/messages', messageRoutes);
 
 // Lắng nghe trên cổng PORT
 app.listen(PORT, () => {

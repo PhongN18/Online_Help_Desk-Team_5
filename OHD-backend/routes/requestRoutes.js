@@ -10,7 +10,7 @@ router.post(
     protect, authorizeRoles('Requester', 'Technician', 'Manager'),
     [
         check('facility').notEmpty().withMessage('Facility is required'),
-        check('severity').isIn(['low', 'medium', 'high']).withMessage('Severity must be one of: low, medium, high'),
+        check('severity').isIn(['Low', 'Medium', 'High']).withMessage('Severity must be one of: Low, Medium, High'),
         check('description').notEmpty().withMessage('Description is required')
     ],
     requestController.createRequest
@@ -35,5 +35,12 @@ router.put(
 
 // 🔒 Delete a request (Only Managers can delete requests)
 router.delete('/:request_id', protect, authorizeRoles('Manager', 'Admin'), requestController.deleteRequest);
+
+// For admin dashboard
+router.get("/admin/overview-stats", protect, authorizeRoles('Admin'), requestController.getOverviewStats);  // Overview statistics
+router.get("/admin/requests-over-time", protect, authorizeRoles('Admin'), requestController.getRequestsOverTime);  // Requests trend
+router.get("/admin/requests-by-facility", protect, authorizeRoles('Admin'), requestController.getRequestsByFacility);  // Requests by facility
+router.get("/admin/severity-distribution", protect, authorizeRoles('Admin'), requestController.getSeverityDistribution);  // Severity distribution
+router.get("/admin/average-resolution-time", protect, authorizeRoles('Admin'), requestController.getResolutionTime);  // Average resolution time
 
 module.exports = router;

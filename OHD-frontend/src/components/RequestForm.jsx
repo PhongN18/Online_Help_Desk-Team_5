@@ -17,7 +17,7 @@ export default function RequestForm({ user }) {
             name: "severity",
             label: "Severity Level",
             type: "select",
-            options: ["low", "medium", "high"],
+            options: ["Low", "Medium", "High"],
         },
         {
             name: "description",

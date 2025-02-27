@@ -26,7 +26,9 @@ exports.createRequest = async (req, res) => {
             severity,
             description,
             status: status || 'unassigned',  // Default status is 'unassigned'
-            remarks
+            remarks,
+            created_at: Date.now(),
+            updated_at: Date.now()
         });
 
         await request.save();
@@ -74,19 +76,13 @@ exports.createRequest = async (req, res) => {
 // Get all requests with optional filters and pagination
 exports.getRequests = async (req, res) => {
     try {
-        const { status, facility, page = 1, limit = 10, created_by_me, assigned_to, need_handle } = req.query; // Added assigned_to
-
-        const parsedLimit = parseInt(limit, 10);
-        const parsedPage = parseInt(page, 10);
-
-        if (parsedPage < 1 || parsedLimit < 1) {
-            return res.status(400).json({ message: 'Page and limit must be greater than 0' });
-        }
+        const { status, facility, severity, page, limit, created_by_me, assigned_to, need_handle } = req.query; // Added assigned_to
 
         let filter = {}; // Default: Admins see all requests
 
         if (status) filter.status = status;
         if (facility) filter.facility = facility;
+        if (severity) filter.severity = severity
 
         // Admin sees all requests
         if (req.user.roles.includes('Admin')) {
@@ -125,25 +121,38 @@ exports.getRequests = async (req, res) => {
             ];
         }
 
-        // Get total number of requests (for pagination metadata)
-        const totalItems = await Request.countDocuments(filter);
+        if (page && limit) {
+            const parsedLimit = parseInt(limit, 10);
+            const parsedPage = parseInt(page, 10);
 
-        // Get the paginated requests
-        const requests = await Request.find(filter)
-            .skip((parsedPage - 1) * parsedLimit)  // Skip items based on page number
-            .limit(parsedLimit)  // Limit the number of items per page
-            .exec();
+            if (parsedPage < 1 || parsedLimit < 1) {
+                return res.status(400).json({ message: 'Page and limit must be greater than 0' });
+            }
 
-        // Calculate total pages
-        const totalPages = Math.ceil(totalItems / parsedLimit);
+            // Get total number of requests (for pagination metadata)
+            const totalItems = await Request.countDocuments(filter);
 
-        // Send the response
-        res.json({
-            totalItems,
-            totalPages,
-            currentPage: parsedPage,
-            data: requests
-        });
+            // Get the paginated requests
+            const requests = await Request.find(filter)
+                .skip((parsedPage - 1) * parsedLimit)  // Skip items based on page number
+                .limit(parsedLimit)  // Limit the number of items per page
+                .exec();
+
+            // Calculate total pages
+            const totalPages = Math.ceil(totalItems / parsedLimit);
+
+            // Send the response
+            res.json({
+                totalItems,
+                totalPages,
+                currentPage: parsedPage,
+                data: requests
+            });
+        } else {
+            const requests = await Request.find(filter).exec()
+
+            res.json({ requests })
+        }
 
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -398,5 +407,126 @@ exports.deleteRequest = async (req, res) => {
         res.json({ message: 'Request deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+};
+
+// For admin dashboard
+// 📌 1️⃣ Overview Statistics
+exports.getOverviewStats = async (req, res) => {
+    try {
+        const totalRequests = await Request.countDocuments();
+        const statusCounts = await Request.aggregate([
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]);
+        const pendingClosingRequests = await Request.countDocuments({ closing_reason: { $ne: null }, manager_handle: null });
+
+        const stats = {
+            totalRequests,
+            pendingClosingRequests,
+            statusCounts: statusCounts.reduce((acc, item) => ({ ...acc, [item._id]: item.count }), {})
+        };
+
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 📌 2️⃣ Requests Over Time (Last 30 Days)
+exports.getRequestsOverTime = async (req, res) => {
+    try {
+        const today = new Date();
+        const firstDayOfFirstMonth = new Date(today.getFullYear(), today.getMonth() - 5, 1); // First day of 6 months ago
+
+        const requestTrends = await Request.aggregate([
+            {
+                $match: { created_at: { $gte: firstDayOfFirstMonth } } // Ensure we count from the 1st day of 6 months ago
+            },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: { format: "%m/%Y", date: "$created_at" } // Format as "MM YYYY"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } } // Ensure chronological sorting
+        ]);
+        
+
+        console.log(requestTrends);
+
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            months.push(date.toLocaleString('en-US', { month: '2-digit', year: 'numeric' }).replace(',', ''));
+        }
+
+        // Convert aggregation result into a Map
+        const requestTrendsMap = new Map(requestTrends.map(item => [item._id, item.count]));
+
+        // Fill missing months with count 0
+        const formattedTrends = months.map(month => ({
+            _id: month,
+            count: requestTrendsMap.get(month) || 0
+        }));
+
+        res.json(formattedTrends);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+// 📌 3️⃣ Requests by Facility
+exports.getRequestsByFacility = async (req, res) => {
+    try {
+        const facilityCounts = await Request.aggregate([
+            { $group: { _id: "$facility", count: { $sum: 1 } } },
+            { $lookup: { from: "facilities", localField: '_id', foreignField: 'facility_id', as: 'facilityDetails' } },
+            { $unwind: '$facilityDetails' },
+            { $sort: { count: -1 } }
+        ]);
+
+        res.json(facilityCounts);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 📌 4️⃣ Severity Distribution
+exports.getSeverityDistribution = async (req, res) => {
+    try {
+        const severityCounts = await Request.aggregate([
+            { $group: { _id: "$severity", count: { $sum: 1 } } }
+        ]);
+
+        res.json(severityCounts);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 📌 5️⃣ Average Request Resolution Time
+exports.getResolutionTime = async (req, res) => {
+    try {
+        const closedRequests = await Request.aggregate([
+            { $match: { status: "Closed" } },
+            {
+                $project: {
+                    resolutionTime: { $subtract: ["$updated_at", "$created_at"] }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    avgResolutionTime: { $avg: "$resolutionTime" }
+                }
+            }
+        ]);
+
+        res.json({ avgResolutionTime: closedRequests[0]?.avgResolutionTime || 0 });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 };

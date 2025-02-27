@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
@@ -14,12 +14,21 @@ export default function Login() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    useEffect(() => {
+        setError(null)
+    }, [view])
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
         try {
+
+            if (formData.email === 'admin.user@example.com' && formData.password === 'adminpassword' && view !== 'admin') {
+                throw new Error("Please log in as Admin")
+            }
+
             let response;
             let apiEndpoint = view === "register" ? "/auth/register" : "/auth/login";
 
@@ -43,7 +52,7 @@ export default function Login() {
             if (view === "register" || view === "user") {
                 navigate("/dashboard"); // Redirect to User Dashboard
             } else if (view === "admin") {
-                navigate("/admin-dashboard"); // Redirect to Admin Dashboard
+                navigate("/admin"); // Redirect to Admin Dashboard
             }
         } catch (err) {
             setError(err.message);

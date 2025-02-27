@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const FacilitySchema = new mongoose.Schema({
     facility_id: { type: String, unique: true, required: true },
     name: { type: String, required: true },
-    head_manager: { type: String, required: true },
+    head_manager: { type: String },
     technicians: [{ type: String }],
     status: {
         type: String,

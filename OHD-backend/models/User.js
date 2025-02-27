@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     refreshToken: { type: String }, // Store refresh token for session management
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' }
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
 });
 
 UserSchema.pre('save', async function (next) {

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function RequestList({ user, view }) {
+export default function RequestList({ user, view, currentPage, setCurrentPage }) {
     const [requests, setRequests] = useState([]);
     const [facilities, setFacilities] = useState([]); // Danh sách Facilities
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [selectedStatus, setSelectedStatus] = useState(""); // Lọc theo Status
     const [selectedFacility, setSelectedFacility] = useState(""); // Lọc theo Facility
+    const [selectedSeverity, setSelectedSeverity] = useState(""); // Lọc theo Severity
     const navigate = useNavigate();
 
     const statusStyle = {
@@ -20,6 +20,12 @@ export default function RequestList({ user, view }) {
         closed: "bg-gray-500",
         rejected: "bg-red-600"
     };
+
+    const severityStyle = {
+        low: "bg-yellow-600",
+        medium: "bg-orange-600",
+        high: "bg-red-600",
+    }
 
     // Fetch danh sách Facilities để hiển thị trong dropdown
     const fetchFacilities = async () => {
@@ -51,7 +57,7 @@ export default function RequestList({ user, view }) {
             } else if (view === "assigned_requests") {
                 url += `&assigned_to=${user.user_id}`;
             } else if (view === 'need_handle') {
-                url += `&need_handle=${user.user_id}`;
+                url += `&need_handle=true`;
             }
 
             if (selectedStatus) {
@@ -60,6 +66,10 @@ export default function RequestList({ user, view }) {
 
             if (selectedFacility) {
                 url += `&facility=${selectedFacility}`;
+            }
+
+            if (selectedSeverity) {
+                url += `&severity=${selectedSeverity}`;
             }
 
             const res = await fetch(url, {
@@ -86,7 +96,7 @@ export default function RequestList({ user, view }) {
     useEffect(() => {
         fetchFacilities();
         fetchRequests(currentPage);
-    }, [currentPage, user.id, view, selectedStatus, selectedFacility]);
+    }, [currentPage, user.id, view, selectedStatus, selectedFacility, selectedSeverity]);
 
     const handlePageChange = (page) => {
         if (page < 1 || page > totalPages) return;
@@ -132,6 +142,18 @@ export default function RequestList({ user, view }) {
                         ))}
                     </select>
 
+                    {/* Dropdown chọn Severity */}
+                    <select
+                        value={selectedSeverity}
+                        onChange={(e) => {setSelectedSeverity(e.target.value); setCurrentPage(1)}}
+                        className="border border-gray-300 p-2 rounded-lg"
+                    >
+                        <option value="">All Severity</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+
                     {/* Dropdown chọn Status */}
                     <select
                         value={selectedStatus}
@@ -155,7 +177,7 @@ export default function RequestList({ user, view }) {
                         <th className="w-1/12 px-4 py-2">No.</th>
                         <th className="w-3/12 px-4 py-2">Title</th>
                         <th className="w-2/12 px-4 py-2">Facility</th>
-                        <th className="w-1/12 px-4 py-2">Technician</th>
+                        <th className="w-1/12 px-4 py-2">Severity</th>
                         <th className="w-2/12 px-4 py-2">Remarks</th>
                         <th className="w-2/12 px-4 py-2">Status</th>
                         <th className="w-1/12 px-4 py-2"></th>
@@ -172,7 +194,11 @@ export default function RequestList({ user, view }) {
                                 <td className="px-4 py-2 text-center">{(currentPage - 1) * 10 + index + 1}</td>
                                 <td className="px-4 py-2">{req.title}</td>
                                 <td className="px-4 py-2 text-center">{facilities.find(facility => facility.facility_id === req.facility)?.name}</td>
-                                <td className="px-4 py-2 text-center">{req.assigned_to}</td>
+                                <td className="px-4 py-2 text-center">
+                                    <span className={`block py-1 px-2 text-sm rounded font-bold text-white ${severityStyle[req.severity.toLowerCase()]}`}>
+                                        {req.severity}
+                                    </span>
+                                </td>
                                 <td className="px-4 py-2 text-center ">{req.remarks ? (req.remarks.length > 15 ? req.remarks.substring(0, 15) + '...' : req.remarks) : ''}</td>
                                 <td className="px-4 py-2 text-center">
                                     <span className={`block py-1 text-sm rounded font-bold text-white ${statusStyle[req.status.toLowerCase().replace(/\s+/g, '')]}`}>

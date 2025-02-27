@@ -7,7 +7,7 @@ const RequestSchema = new mongoose.Schema({
     assigned_by: { type: String },  // user_id (String)
     facility: { type: String, required: true },
     title: { type: String, required: true },
-    severity: { type: String, enum: ['low', 'medium', 'high'], required: true },
+    severity: { type: String, enum: ['Low', 'Medium', 'High'], required: true },
     description: { type: String, required: true },
     closing_reason: { type: String },
     manager_handle: { type: String },
@@ -17,8 +17,8 @@ const RequestSchema = new mongoose.Schema({
         default: 'Unassigned'
     },
     remarks: { type: String },
-}, {
-    timestamps: true  // Automatically add `created_at` and `updated_at`
+    created_at: { type: Date },
+    updated_at: { type: Date },
 });
 
 // Indexing for faster queries
