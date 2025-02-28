@@ -174,7 +174,7 @@ export default function AdminDashboard() {
                                         {
                                             label: "Severity",
                                             data: severityDistribution.map(s => s.count),
-                                            backgroundColor: ["yellow", "orange", "red"]
+                                            backgroundColor: ["red", "orange", "yellow"]
                                         }
                                     ]
                                 }}
